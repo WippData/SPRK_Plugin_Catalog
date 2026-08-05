@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "demo-banking-actions",
+  "type": "existing_page_actions",
+  "name": "Banking Weather Action",
+  "version": "1.0.0",
+  "description": "Adds a manual demo API button to the Banking page.",
+  "targets": {
+    "companyScoped": true
+  },
+  "definition": {
+    "targetPageKey": "banking",
+    "actions": [
+      {
+        "actionId": "pull-demo-weather",
+        "label": "Pull Demo Data",
+        "kind": "run_api_call",
+        "apiCall": {
+          "extensionId": "demo-weather-api",
+          "operationId": "current-weather"
+        },
+        "result": {
+          "display": "modal",
+          "title": "API Result"
+        }
+      }
+    ]
+  }
+}

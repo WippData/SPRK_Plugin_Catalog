@@ -1,0 +1,1393 @@
+{
+  "schemaVersion": "1.0",
+  "extensionId": "payroll-runs-page",
+  "type": "new_page",
+  "name": "Payroll Runs Page",
+  "version": "1.0.0",
+  "description": "Creates payroll runs with plugin-owned payroll calculations, pay stub document metadata, and confirm-time GL posting.",
+  "targets": {
+    "companyScoped": true,
+    "supportedEntityIds": [
+      "company"
+    ]
+  },
+  "definition": {
+    "page": {
+      "pageId": "payroll-runs",
+      "pageKind": "transaction",
+      "title": "Payroll Runs",
+      "icon": "DollarOutlined",
+      "route": "/extensions/payroll-runs",
+      "dataSource": {
+        "kind": "resource",
+        "resource": "payrollRuns"
+      }
+    },
+    "headerFields": [
+      {
+        "fieldId": "runNumber",
+        "label": "Run Number",
+        "dataType": "string",
+        "required": true,
+        "tooltip": "Unique payroll run identifier used on the transaction, pay stubs, and the posted journal entry number. Not used in numeric calculations."
+      },
+      {
+        "fieldId": "periodStart",
+        "label": "Period Start",
+        "dataType": "date",
+        "required": true,
+        "tooltip": "First date in the payroll period. Used for payroll context and pay stubs; not used in numeric calculations."
+      },
+      {
+        "fieldId": "periodEnd",
+        "label": "Period End",
+        "dataType": "date",
+        "required": true,
+        "tooltip": "Last date in the payroll period. Used for payroll context and pay stubs; not used in numeric calculations."
+      },
+      {
+        "fieldId": "payDate",
+        "label": "Pay Date",
+        "dataType": "date",
+        "required": true,
+        "tooltip": "Date employees are paid. Used on pay stubs and as the journal entry date when the run is confirmed."
+      },
+      {
+        "fieldId": "overtimeThreshold",
+        "label": "Overtime Threshold",
+        "dataType": "number",
+        "required": true,
+        "tooltip": "Hours above this threshold become OT Hours on each line. OT Hours = max(Total Hours - Overtime Threshold, 0); Regular Hours = Total Hours - OT Hours."
+      },
+      {
+        "fieldId": "overtimeMultiplier",
+        "label": "Overtime Multiplier",
+        "dataType": "number",
+        "required": true,
+        "tooltip": "Fallback multiplier for overtime. If Overtime Hourly Rate is blank, OT Rate = Regular Hourly Rate x Overtime Multiplier."
+      },
+      {
+        "fieldId": "payPeriodsPerYear",
+        "label": "Pay Periods Per Year",
+        "dataType": "number",
+        "required": true,
+        "tooltip": "Used for annual pay lines. Annual Regular Pay = Annual Pay Rate / Pay Periods Per Year."
+      },
+      {
+        "fieldId": "weeksInPeriod",
+        "label": "Weeks In Period",
+        "dataType": "number",
+        "required": true,
+        "tooltip": "Used for weekly pay lines. Weekly Regular Pay = Weekly Pay Rate x Weeks In Period."
+      },
+      {
+        "fieldId": "monthsInPeriod",
+        "label": "Months In Period",
+        "dataType": "number",
+        "required": true,
+        "tooltip": "Used for monthly pay lines. Monthly Regular Pay = Monthly Pay Rate x Months In Period."
+      },
+      {
+        "fieldId": "defaultEmployeeTaxRate",
+        "label": "Default Employee Tax Rate",
+        "dataType": "number",
+        "required": true,
+        "tooltip": "Default employee withholding rate. Used when a line has no Employee Tax Rate Override. Employee Taxes = Gross Pay x Effective Employee Tax Rate."
+      },
+      {
+        "fieldId": "defaultEmployerTaxRate",
+        "label": "Default Employer Tax Rate",
+        "dataType": "number",
+        "required": true,
+        "tooltip": "Default employer payroll tax rate. Used when a line has no Employer Tax Rate Override. Employer Taxes = Gross Pay x Effective Employer Tax Rate."
+      },
+      {
+        "fieldId": "defaultEmployeeBenefitFlat",
+        "label": "Default Employee Benefit Flat",
+        "dataType": "currency",
+        "required": false,
+        "tooltip": "Default flat employee deduction per line. Used when Employee Benefit Flat Override is blank and included in Employee Benefits."
+      },
+      {
+        "fieldId": "defaultEmployeeBenefitRate",
+        "label": "Default Employee Benefit Rate",
+        "dataType": "number",
+        "required": false,
+        "tooltip": "Default employee benefit deduction rate. Used when Employee Benefit Rate Override is blank. Employee Benefits include Gross Pay x this rate."
+      },
+      {
+        "fieldId": "defaultEmployerBenefitFlat",
+        "label": "Default Employer Benefit Flat",
+        "dataType": "currency",
+        "required": false,
+        "tooltip": "Default flat employer benefit cost per line. Used when Employer Benefit Flat Override is blank and included in Employer Benefits."
+      },
+      {
+        "fieldId": "defaultEmployerBenefitRate",
+        "label": "Default Employer Benefit Rate",
+        "dataType": "number",
+        "required": false,
+        "tooltip": "Default employer benefit rate. Used when Employer Benefit Rate Override is blank. Employer Benefits include Gross Pay x this rate."
+      },
+      {
+        "fieldId": "cashAccountId",
+        "label": "Cash Account",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": false
+          },
+          "drawer": {
+            "input": "page_link",
+            "pageLink": {
+              "targetPageId": "accounts"
+            }
+          }
+        },
+        "tooltip": "Chart of Accounts link credited for Total Net Pay when the payroll run is confirmed."
+      },
+      {
+        "fieldId": "wagesExpenseAccountId",
+        "label": "Wages Expense Account",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": false
+          },
+          "drawer": {
+            "input": "page_link",
+            "pageLink": {
+              "targetPageId": "accounts"
+            }
+          }
+        },
+        "tooltip": "Chart of Accounts link debited for Total Gross wages when the payroll run is confirmed."
+      },
+      {
+        "fieldId": "payrollTaxExpenseAccountId",
+        "label": "Payroll Tax Expense Account",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": false
+          },
+          "drawer": {
+            "input": "page_link",
+            "pageLink": {
+              "targetPageId": "accounts"
+            }
+          }
+        },
+        "tooltip": "Chart of Accounts link debited for Total Employer Taxes when the payroll run is confirmed."
+      },
+      {
+        "fieldId": "benefitsExpenseAccountId",
+        "label": "Benefits Expense Account",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": false
+          },
+          "drawer": {
+            "input": "page_link",
+            "pageLink": {
+              "targetPageId": "accounts"
+            }
+          }
+        },
+        "tooltip": "Chart of Accounts link debited for Total Employer Benefits when the payroll run is confirmed."
+      },
+      {
+        "fieldId": "employeeTaxLiabilityAccountId",
+        "label": "Employee Tax Liability Account",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": false
+          },
+          "drawer": {
+            "input": "page_link",
+            "pageLink": {
+              "targetPageId": "accounts"
+            }
+          }
+        },
+        "tooltip": "Chart of Accounts link credited for Total Employee Taxes withheld when the payroll run is confirmed."
+      },
+      {
+        "fieldId": "employerTaxLiabilityAccountId",
+        "label": "Employer Tax Liability Account",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": false
+          },
+          "drawer": {
+            "input": "page_link",
+            "pageLink": {
+              "targetPageId": "accounts"
+            }
+          }
+        },
+        "tooltip": "Chart of Accounts link credited for Total Employer Taxes payable when the payroll run is confirmed."
+      },
+      {
+        "fieldId": "benefitsLiabilityAccountId",
+        "label": "Benefits Liability Account",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": false
+          },
+          "drawer": {
+            "input": "page_link",
+            "pageLink": {
+              "targetPageId": "accounts"
+            }
+          }
+        },
+        "tooltip": "Chart of Accounts link credited for Total Employee Benefits plus Total Employer Benefits when the payroll run is confirmed."
+      }
+    ],
+    "lineItems": {
+      "fieldId": "lines",
+      "label": "Payroll Lines",
+      "dataEntry": {
+        "mode": "grid",
+        "suggestedMinRows": 20,
+        "suggestedMaxRows": 30
+      },
+      "columns": [
+        {
+          "fieldId": "employeeId",
+          "label": "Employee ID",
+          "dataType": "string",
+          "required": true,
+          "tooltip": "Employee record identifier for this payroll line. Used to link pay stub pages to employees; not used in numeric calculations."
+        },
+        {
+          "fieldId": "employeeNumber",
+          "label": "Employee Number",
+          "dataType": "string",
+          "required": true,
+          "tooltip": "Employee number shown on the payroll line and pay stub filename. Not used in numeric calculations."
+        },
+        {
+          "fieldId": "employeeName",
+          "label": "Employee",
+          "dataType": "string",
+          "required": true,
+          "tooltip": "Employee display name shown on the payroll line and pay stub. Not used in numeric calculations."
+        },
+        {
+          "fieldId": "department",
+          "label": "Department",
+          "dataType": "string",
+          "required": false,
+          "tooltip": "Department label for review and reporting. Not used in numeric calculations."
+        },
+        {
+          "fieldId": "payRateUnit",
+          "label": "Pay Rate Unit",
+          "dataType": "string",
+          "required": true,
+          "tooltip": "Selects the regular pay formula for this line: hour, week, month, or year."
+        },
+        {
+          "fieldId": "totalHours",
+          "label": "Total Hours",
+          "dataType": "number",
+          "required": false,
+          "tooltip": "Total hours worked for this line. Drives OT Hours, Regular Hours, hourly regular pay, gross pay, taxes, benefits, net pay, and total employer cost."
+        },
+        {
+          "fieldId": "regularHourlyRate",
+          "label": "Regular Hourly Rate",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Hourly rate for regular hours. Hourly Regular Pay = Regular Hours x Regular Hourly Rate."
+        },
+        {
+          "fieldId": "overtimeHourlyRate",
+          "label": "Overtime Hourly Rate",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Optional explicit overtime rate. If blank, OT Rate = Regular Hourly Rate x header Overtime Multiplier."
+        },
+        {
+          "fieldId": "weeklyPayRate",
+          "label": "Weekly Pay Rate",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Weekly rate. Weekly Regular Pay = Weekly Pay Rate x header Weeks In Period."
+        },
+        {
+          "fieldId": "monthlyPayRate",
+          "label": "Monthly Pay Rate",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Monthly rate. Monthly Regular Pay = Monthly Pay Rate x header Months In Period."
+        },
+        {
+          "fieldId": "annualPayRate",
+          "label": "Annual Pay Rate",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Annual rate. Annual Regular Pay = Annual Pay Rate / header Pay Periods Per Year."
+        },
+        {
+          "fieldId": "bonusPay",
+          "label": "Bonus Pay",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Additional pay added to gross pay. Gross Pay = Regular Pay + OT Pay + Bonus Pay."
+        },
+        {
+          "fieldId": "employeeTaxRateOverride",
+          "label": "Employee Tax Rate Override",
+          "dataType": "number",
+          "required": false,
+          "tooltip": "Optional employee tax override for this line. If present, Employee Taxes = Gross Pay x this rate; otherwise the header default employee tax rate is used."
+        },
+        {
+          "fieldId": "employerTaxRateOverride",
+          "label": "Employer Tax Rate Override",
+          "dataType": "number",
+          "required": false,
+          "tooltip": "Optional employer tax override for this line. If present, Employer Taxes = Gross Pay x this rate; otherwise the header default employer tax rate is used."
+        },
+        {
+          "fieldId": "employeeBenefitFlatOverride",
+          "label": "Employee Benefit Flat Override",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Optional flat employee benefit deduction for this line. If present, it replaces the header default employee benefit flat amount."
+        },
+        {
+          "fieldId": "employeeBenefitRateOverride",
+          "label": "Employee Benefit Rate Override",
+          "dataType": "number",
+          "required": false,
+          "tooltip": "Optional employee benefit deduction rate for this line. If present, Employee Benefits include Gross Pay x this rate; otherwise the header default employee benefit rate is used."
+        },
+        {
+          "fieldId": "employerBenefitFlatOverride",
+          "label": "Employer Benefit Flat Override",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Optional flat employer benefit cost for this line. If present, it replaces the header default employer benefit flat amount."
+        },
+        {
+          "fieldId": "employerBenefitRateOverride",
+          "label": "Employer Benefit Rate Override",
+          "dataType": "number",
+          "required": false,
+          "tooltip": "Optional employer benefit rate for this line. If present, Employer Benefits include Gross Pay x this rate; otherwise the header default employer benefit rate is used."
+        },
+        {
+          "fieldId": "overtimeHours",
+          "label": "OT Hours",
+          "dataType": "number",
+          "required": false,
+          "tooltip": "Calculated. OT Hours = max(Total Hours - header Overtime Threshold, 0)."
+        },
+        {
+          "fieldId": "regularHours",
+          "label": "Regular Hours",
+          "dataType": "number",
+          "required": false,
+          "tooltip": "Calculated. Regular Hours = max(Total Hours - OT Hours, 0)."
+        },
+        {
+          "fieldId": "hourlyRegularPay",
+          "label": "Hourly Regular Pay",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Hourly Regular Pay = Regular Hours x Regular Hourly Rate."
+        },
+        {
+          "fieldId": "weeklyRegularPay",
+          "label": "Weekly Regular Pay",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Weekly Regular Pay = Weekly Pay Rate x header Weeks In Period."
+        },
+        {
+          "fieldId": "monthlyRegularPay",
+          "label": "Monthly Regular Pay",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Monthly Regular Pay = Monthly Pay Rate x header Months In Period."
+        },
+        {
+          "fieldId": "annualRegularPay",
+          "label": "Annual Regular Pay",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Annual Regular Pay = Annual Pay Rate / header Pay Periods Per Year."
+        },
+        {
+          "fieldId": "regularPay",
+          "label": "Regular Pay",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Uses Pay Rate Unit to choose hourly, weekly, monthly, or annual regular pay."
+        },
+        {
+          "fieldId": "overtimeRate",
+          "label": "OT Rate",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Uses Overtime Hourly Rate when present; otherwise Regular Hourly Rate x header Overtime Multiplier."
+        },
+        {
+          "fieldId": "overtimePay",
+          "label": "OT Pay",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. OT Pay = OT Hours x OT Rate."
+        },
+        {
+          "fieldId": "grossPay",
+          "label": "Gross Pay",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Gross Pay = Regular Pay + OT Pay + Bonus Pay."
+        },
+        {
+          "fieldId": "effectiveEmployeeTaxRate",
+          "label": "Effective Employee Tax Rate",
+          "dataType": "number",
+          "required": false,
+          "tooltip": "Calculated. Uses Employee Tax Rate Override when present; otherwise header Default Employee Tax Rate."
+        },
+        {
+          "fieldId": "effectiveEmployerTaxRate",
+          "label": "Effective Employer Tax Rate",
+          "dataType": "number",
+          "required": false,
+          "tooltip": "Calculated. Uses Employer Tax Rate Override when present; otherwise header Default Employer Tax Rate."
+        },
+        {
+          "fieldId": "employeeTaxes",
+          "label": "Employee Taxes",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Employee Taxes = Gross Pay x Effective Employee Tax Rate. Deducted from Net Pay and credited to employee tax liability on confirmation."
+        },
+        {
+          "fieldId": "employerTaxes",
+          "label": "Employer Taxes",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Employer Taxes = Gross Pay x Effective Employer Tax Rate. Added to Total Employer Cost and posted to employer tax expense/liability on confirmation."
+        },
+        {
+          "fieldId": "effectiveEmployeeBenefitFlat",
+          "label": "Effective Employee Benefit Flat",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Uses Employee Benefit Flat Override when present; otherwise header Default Employee Benefit Flat."
+        },
+        {
+          "fieldId": "effectiveEmployeeBenefitRate",
+          "label": "Effective Employee Benefit Rate",
+          "dataType": "number",
+          "required": false,
+          "tooltip": "Calculated. Uses Employee Benefit Rate Override when present; otherwise header Default Employee Benefit Rate."
+        },
+        {
+          "fieldId": "employeeBenefits",
+          "label": "Employee Benefits",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Employee Benefits = Effective Employee Benefit Flat + Gross Pay x Effective Employee Benefit Rate. Deducted from Net Pay."
+        },
+        {
+          "fieldId": "effectiveEmployerBenefitFlat",
+          "label": "Effective Employer Benefit Flat",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Uses Employer Benefit Flat Override when present; otherwise header Default Employer Benefit Flat."
+        },
+        {
+          "fieldId": "effectiveEmployerBenefitRate",
+          "label": "Effective Employer Benefit Rate",
+          "dataType": "number",
+          "required": false,
+          "tooltip": "Calculated. Uses Employer Benefit Rate Override when present; otherwise header Default Employer Benefit Rate."
+        },
+        {
+          "fieldId": "employerBenefits",
+          "label": "Employer Benefits",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Employer Benefits = Effective Employer Benefit Flat + Gross Pay x Effective Employer Benefit Rate. Added to Total Employer Cost."
+        },
+        {
+          "fieldId": "netPay",
+          "label": "Net Pay",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Net Pay = Gross Pay - Employee Taxes - Employee Benefits."
+        },
+        {
+          "fieldId": "totalEmployerCost",
+          "label": "Total Employer Cost",
+          "dataType": "currency",
+          "required": false,
+          "tooltip": "Calculated. Total Employer Cost = Gross Pay + Employer Taxes + Employer Benefits."
+        }
+      ]
+    },
+    "totalFields": [
+      {
+        "fieldId": "totalHours",
+        "label": "Total Hours",
+        "dataType": "number",
+        "required": false,
+        "tooltip": "Calculated total across payroll lines. Sum of line Total Hours."
+      },
+      {
+        "fieldId": "totalOvertimeHours",
+        "label": "Total OT Hours",
+        "dataType": "number",
+        "required": false,
+        "tooltip": "Calculated total across payroll lines. Sum of line OT Hours."
+      },
+      {
+        "fieldId": "totalGross",
+        "label": "Total Gross",
+        "dataType": "currency",
+        "required": false,
+        "tooltip": "Calculated total across payroll lines. Sum of line Gross Pay; debited to wages expense on confirmation."
+      },
+      {
+        "fieldId": "totalEmployeeTaxes",
+        "label": "Total Employee Taxes",
+        "dataType": "currency",
+        "required": false,
+        "tooltip": "Calculated total across payroll lines. Sum of line Employee Taxes; credited to employee tax liability on confirmation."
+      },
+      {
+        "fieldId": "totalEmployeeBenefits",
+        "label": "Total Employee Benefits",
+        "dataType": "currency",
+        "required": false,
+        "tooltip": "Calculated total across payroll lines. Sum of line Employee Benefits and part of total benefit liability."
+      },
+      {
+        "fieldId": "totalNetPay",
+        "label": "Total Net Pay",
+        "dataType": "currency",
+        "required": false,
+        "tooltip": "Calculated total across payroll lines. Sum of line Net Pay; credited to cash on confirmation."
+      },
+      {
+        "fieldId": "totalEmployerTaxes",
+        "label": "Total Employer Taxes",
+        "dataType": "currency",
+        "required": false,
+        "tooltip": "Calculated total across payroll lines. Sum of line Employer Taxes; debited to payroll tax expense and credited to employer tax liability on confirmation."
+      },
+      {
+        "fieldId": "totalEmployerBenefits",
+        "label": "Total Employer Benefits",
+        "dataType": "currency",
+        "required": false,
+        "tooltip": "Calculated total across payroll lines. Sum of line Employer Benefits; debited to benefits expense and included in benefits liability on confirmation."
+      },
+      {
+        "fieldId": "totalBenefitLiability",
+        "label": "Total Benefit Liability",
+        "dataType": "currency",
+        "required": false,
+        "tooltip": "Calculated. Total Benefit Liability = Total Employee Benefits + Total Employer Benefits; credited to benefits liability on confirmation."
+      },
+      {
+        "fieldId": "totalEmployerCost",
+        "label": "Total Employer Cost",
+        "dataType": "currency",
+        "required": false,
+        "tooltip": "Calculated. Sum of line Total Employer Cost; equals Total Gross + Total Employer Taxes + Total Employer Benefits."
+      }
+    ],
+    "calculations": [
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "overtimeHours",
+        "expression": {
+          "kind": "max",
+          "args": [
+            {
+              "kind": "binary_op",
+              "operator": "-",
+              "args": [
+                {
+                  "kind": "field",
+                  "field": "totalHours"
+                },
+                {
+                  "kind": "field",
+                  "field": "header.overtimeThreshold"
+                }
+              ]
+            },
+            {
+              "kind": "value",
+              "value": 0
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "regularHours",
+        "expression": {
+          "kind": "max",
+          "args": [
+            {
+              "kind": "binary_op",
+              "operator": "-",
+              "args": [
+                {
+                  "kind": "field",
+                  "field": "totalHours"
+                },
+                {
+                  "kind": "field",
+                  "field": "overtimeHours"
+                }
+              ]
+            },
+            {
+              "kind": "value",
+              "value": 0
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "hourlyRegularPay",
+        "expression": {
+          "kind": "binary_op",
+          "operator": "*",
+          "args": [
+            {
+              "kind": "field",
+              "field": "regularHours"
+            },
+            {
+              "kind": "field",
+              "field": "regularHourlyRate"
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "weeklyRegularPay",
+        "expression": {
+          "kind": "binary_op",
+          "operator": "*",
+          "args": [
+            {
+              "kind": "field",
+              "field": "weeklyPayRate"
+            },
+            {
+              "kind": "field",
+              "field": "header.weeksInPeriod"
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "monthlyRegularPay",
+        "expression": {
+          "kind": "binary_op",
+          "operator": "*",
+          "args": [
+            {
+              "kind": "field",
+              "field": "monthlyPayRate"
+            },
+            {
+              "kind": "field",
+              "field": "header.monthsInPeriod"
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "annualRegularPay",
+        "expression": {
+          "kind": "binary_op",
+          "operator": "/",
+          "args": [
+            {
+              "kind": "field",
+              "field": "annualPayRate"
+            },
+            {
+              "kind": "field",
+              "field": "header.payPeriodsPerYear"
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "regularPay",
+        "expression": {
+          "kind": "if",
+          "when": {
+            "field": "payRateUnit",
+            "operator": "eq",
+            "value": "year"
+          },
+          "then": {
+            "kind": "field",
+            "field": "annualRegularPay"
+          },
+          "else": {
+            "kind": "if",
+            "when": {
+              "field": "payRateUnit",
+              "operator": "eq",
+              "value": "month"
+            },
+            "then": {
+              "kind": "field",
+              "field": "monthlyRegularPay"
+            },
+            "else": {
+              "kind": "if",
+              "when": {
+                "field": "payRateUnit",
+                "operator": "eq",
+                "value": "week"
+              },
+              "then": {
+                "kind": "field",
+                "field": "weeklyRegularPay"
+              },
+              "else": {
+                "kind": "field",
+                "field": "hourlyRegularPay"
+              }
+            }
+          }
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "overtimeRate",
+        "expression": {
+          "kind": "coalesce",
+          "args": [
+            {
+              "kind": "field",
+              "field": "overtimeHourlyRate"
+            },
+            {
+              "kind": "binary_op",
+              "operator": "*",
+              "args": [
+                {
+                  "kind": "field",
+                  "field": "regularHourlyRate"
+                },
+                {
+                  "kind": "field",
+                  "field": "header.overtimeMultiplier"
+                }
+              ]
+            },
+            {
+              "kind": "value",
+              "value": 0
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "overtimePay",
+        "expression": {
+          "kind": "binary_op",
+          "operator": "*",
+          "args": [
+            {
+              "kind": "field",
+              "field": "overtimeHours"
+            },
+            {
+              "kind": "field",
+              "field": "overtimeRate"
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "grossPay",
+        "expression": {
+          "kind": "sum",
+          "args": [
+            {
+              "kind": "field",
+              "field": "regularPay"
+            },
+            {
+              "kind": "field",
+              "field": "overtimePay"
+            },
+            {
+              "kind": "field",
+              "field": "bonusPay"
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "effectiveEmployeeTaxRate",
+        "expression": {
+          "kind": "coalesce",
+          "args": [
+            {
+              "kind": "field",
+              "field": "employeeTaxRateOverride"
+            },
+            {
+              "kind": "field",
+              "field": "header.defaultEmployeeTaxRate"
+            },
+            {
+              "kind": "value",
+              "value": 0
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "effectiveEmployerTaxRate",
+        "expression": {
+          "kind": "coalesce",
+          "args": [
+            {
+              "kind": "field",
+              "field": "employerTaxRateOverride"
+            },
+            {
+              "kind": "field",
+              "field": "header.defaultEmployerTaxRate"
+            },
+            {
+              "kind": "value",
+              "value": 0
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "employeeTaxes",
+        "expression": {
+          "kind": "binary_op",
+          "operator": "*",
+          "args": [
+            {
+              "kind": "field",
+              "field": "grossPay"
+            },
+            {
+              "kind": "field",
+              "field": "effectiveEmployeeTaxRate"
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "employerTaxes",
+        "expression": {
+          "kind": "binary_op",
+          "operator": "*",
+          "args": [
+            {
+              "kind": "field",
+              "field": "grossPay"
+            },
+            {
+              "kind": "field",
+              "field": "effectiveEmployerTaxRate"
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "effectiveEmployeeBenefitFlat",
+        "expression": {
+          "kind": "coalesce",
+          "args": [
+            {
+              "kind": "field",
+              "field": "employeeBenefitFlatOverride"
+            },
+            {
+              "kind": "field",
+              "field": "header.defaultEmployeeBenefitFlat"
+            },
+            {
+              "kind": "value",
+              "value": 0
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "effectiveEmployeeBenefitRate",
+        "expression": {
+          "kind": "coalesce",
+          "args": [
+            {
+              "kind": "field",
+              "field": "employeeBenefitRateOverride"
+            },
+            {
+              "kind": "field",
+              "field": "header.defaultEmployeeBenefitRate"
+            },
+            {
+              "kind": "value",
+              "value": 0
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "employeeBenefits",
+        "expression": {
+          "kind": "sum",
+          "args": [
+            {
+              "kind": "field",
+              "field": "effectiveEmployeeBenefitFlat"
+            },
+            {
+              "kind": "binary_op",
+              "operator": "*",
+              "args": [
+                {
+                  "kind": "field",
+                  "field": "grossPay"
+                },
+                {
+                  "kind": "field",
+                  "field": "effectiveEmployeeBenefitRate"
+                }
+              ]
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "effectiveEmployerBenefitFlat",
+        "expression": {
+          "kind": "coalesce",
+          "args": [
+            {
+              "kind": "field",
+              "field": "employerBenefitFlatOverride"
+            },
+            {
+              "kind": "field",
+              "field": "header.defaultEmployerBenefitFlat"
+            },
+            {
+              "kind": "value",
+              "value": 0
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "effectiveEmployerBenefitRate",
+        "expression": {
+          "kind": "coalesce",
+          "args": [
+            {
+              "kind": "field",
+              "field": "employerBenefitRateOverride"
+            },
+            {
+              "kind": "field",
+              "field": "header.defaultEmployerBenefitRate"
+            },
+            {
+              "kind": "value",
+              "value": 0
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "employerBenefits",
+        "expression": {
+          "kind": "sum",
+          "args": [
+            {
+              "kind": "field",
+              "field": "effectiveEmployerBenefitFlat"
+            },
+            {
+              "kind": "binary_op",
+              "operator": "*",
+              "args": [
+                {
+                  "kind": "field",
+                  "field": "grossPay"
+                },
+                {
+                  "kind": "field",
+                  "field": "effectiveEmployerBenefitRate"
+                }
+              ]
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "netPay",
+        "expression": {
+          "kind": "binary_op",
+          "operator": "-",
+          "args": [
+            {
+              "kind": "field",
+              "field": "grossPay"
+            },
+            {
+              "kind": "sum",
+              "args": [
+                {
+                  "kind": "field",
+                  "field": "employeeTaxes"
+                },
+                {
+                  "kind": "field",
+                  "field": "employeeBenefits"
+                }
+              ]
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "line",
+        "kind": "formula",
+        "targetFieldId": "totalEmployerCost",
+        "expression": {
+          "kind": "sum",
+          "args": [
+            {
+              "kind": "field",
+              "field": "grossPay"
+            },
+            {
+              "kind": "field",
+              "field": "employerTaxes"
+            },
+            {
+              "kind": "field",
+              "field": "employerBenefits"
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "total",
+        "kind": "sum",
+        "targetFieldId": "totalHours",
+        "sourceFieldId": "totalHours",
+        "precision": 2
+      },
+      {
+        "scope": "total",
+        "kind": "sum",
+        "targetFieldId": "totalOvertimeHours",
+        "sourceFieldId": "overtimeHours",
+        "precision": 2
+      },
+      {
+        "scope": "total",
+        "kind": "sum",
+        "targetFieldId": "totalGross",
+        "sourceFieldId": "grossPay",
+        "precision": 2
+      },
+      {
+        "scope": "total",
+        "kind": "sum",
+        "targetFieldId": "totalEmployeeTaxes",
+        "sourceFieldId": "employeeTaxes",
+        "precision": 2
+      },
+      {
+        "scope": "total",
+        "kind": "sum",
+        "targetFieldId": "totalEmployeeBenefits",
+        "sourceFieldId": "employeeBenefits",
+        "precision": 2
+      },
+      {
+        "scope": "total",
+        "kind": "sum",
+        "targetFieldId": "totalNetPay",
+        "sourceFieldId": "netPay",
+        "precision": 2
+      },
+      {
+        "scope": "total",
+        "kind": "sum",
+        "targetFieldId": "totalEmployerTaxes",
+        "sourceFieldId": "employerTaxes",
+        "precision": 2
+      },
+      {
+        "scope": "total",
+        "kind": "sum",
+        "targetFieldId": "totalEmployerBenefits",
+        "sourceFieldId": "employerBenefits",
+        "precision": 2
+      },
+      {
+        "scope": "total",
+        "kind": "formula",
+        "targetFieldId": "totalBenefitLiability",
+        "expression": {
+          "kind": "sum",
+          "args": [
+            {
+              "kind": "field",
+              "field": "totalEmployeeBenefits"
+            },
+            {
+              "kind": "field",
+              "field": "totalEmployerBenefits"
+            }
+          ]
+        },
+        "precision": 2
+      },
+      {
+        "scope": "total",
+        "kind": "sum",
+        "targetFieldId": "totalEmployerCost",
+        "sourceFieldId": "totalEmployerCost",
+        "precision": 2
+      }
+    ],
+    "documents": [
+      {
+        "documentId": "pay-stub",
+        "name": "Pay Stub",
+        "scope": "line",
+        "title": "{{employeeName}} Pay Stub",
+        "filename": "{{employeeNumber}}-{{header.runNumber}}-pay-stub.pdf",
+        "fields": [
+          {
+            "label": "Pay Date",
+            "source": "header.payDate",
+            "format": "date"
+          },
+          {
+            "label": "Employee",
+            "source": "employeeName"
+          },
+          {
+            "label": "Gross Pay",
+            "source": "grossPay",
+            "format": "currency"
+          },
+          {
+            "label": "Employee Taxes",
+            "source": "employeeTaxes",
+            "format": "currency"
+          },
+          {
+            "label": "Employee Benefits",
+            "source": "employeeBenefits",
+            "format": "currency"
+          },
+          {
+            "label": "Net Pay",
+            "source": "netPay",
+            "format": "currency"
+          },
+          {
+            "label": "Employer Taxes",
+            "source": "employerTaxes",
+            "format": "currency"
+          },
+          {
+            "label": "Employer Benefits",
+            "source": "employerBenefits",
+            "format": "currency"
+          }
+        ]
+      }
+    ],
+    "posting": {
+      "trigger": "confirm",
+      "dateSource": "header.payDate",
+      "entryNo": "header.runNumber",
+      "memo": "Payroll run",
+      "lines": [
+        {
+          "accountSource": "header.wagesExpenseAccountId",
+          "description": "Gross wages",
+          "debit": {
+            "kind": "field",
+            "field": "totalGross"
+          }
+        },
+        {
+          "accountSource": "header.payrollTaxExpenseAccountId",
+          "description": "Employer payroll taxes",
+          "debit": {
+            "kind": "field",
+            "field": "totalEmployerTaxes"
+          }
+        },
+        {
+          "accountSource": "header.benefitsExpenseAccountId",
+          "description": "Employer benefits",
+          "debit": {
+            "kind": "field",
+            "field": "totalEmployerBenefits"
+          }
+        },
+        {
+          "accountSource": "header.cashAccountId",
+          "description": "Net pay",
+          "credit": {
+            "kind": "field",
+            "field": "totalNetPay"
+          }
+        },
+        {
+          "accountSource": "header.employeeTaxLiabilityAccountId",
+          "description": "Employee tax withholdings",
+          "credit": {
+            "kind": "field",
+            "field": "totalEmployeeTaxes"
+          }
+        },
+        {
+          "accountSource": "header.employerTaxLiabilityAccountId",
+          "description": "Employer payroll taxes payable",
+          "credit": {
+            "kind": "field",
+            "field": "totalEmployerTaxes"
+          }
+        },
+        {
+          "accountSource": "header.benefitsLiabilityAccountId",
+          "description": "Benefit liabilities",
+          "credit": {
+            "kind": "field",
+            "field": "totalBenefitLiability"
+          }
+        }
+      ]
+    },
+    "pageActions": [
+      {
+        "actionId": "new",
+        "enabled": true
+      },
+      {
+        "actionId": "refresh",
+        "enabled": true
+      }
+    ],
+    "rowActions": [
+      {
+        "actionId": "view",
+        "enabled": true
+      },
+      {
+        "actionId": "edit",
+        "enabled": true
+      },
+      {
+        "actionId": "delete",
+        "enabled": true
+      }
+    ]
+  }
+}

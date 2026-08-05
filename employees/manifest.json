@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0",
+  "pluginId": "plugin-employees",
+  "name": "Employees",
+  "version": "1.2.0",
+  "description": "Adds company-scoped employee records, payroll settings, payroll runs, pay stubs, and confirm-time payroll journal posting.",
+  "publisher": {
+    "id": "sprk-labs",
+    "name": "SPRK Labs",
+    "supportEmail": "support@sprk.test"
+  },
+  "runtime": {
+    "minAppVersion": "1.0.0"
+  },
+  "capabilities": {
+    "needsNetwork": false,
+    "needsFileAccess": false,
+    "needsSecrets": false
+  },
+  "extensionManifests": [
+    {
+      "extensionId": "employees-page",
+      "path": "extensions/employees-page.json"
+    },
+    {
+      "extensionId": "payroll-settings-page",
+      "path": "extensions/payroll-settings-page.json"
+    },
+    {
+      "extensionId": "payroll-runs-page",
+      "path": "extensions/payroll-runs-page.json"
+    }
+  ]
+}

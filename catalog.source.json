@@ -1,0 +1,30 @@
+{
+  "catalogVersion": 1,
+  "publisher": {
+    "id": "sprk",
+    "name": "SPRK",
+    "website": "https://sprksystems.com",
+    "supportUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/issues"
+  },
+  "plugins": [
+    {
+      "sourceDirectory": "credentialed-github-api-demo",
+      "summary": "Demonstrates a company-scoped GitHub connection with write-only credentials and host-rendered configuration.",
+      "free": true,
+      "sourceUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/tree/main/credentialed-github-api-demo",
+      "supportUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/issues",
+      "releaseNotes": "Initial official catalog release of the credentialed GitHub API demonstration plugin.",
+      "publishedAt": "2026-08-04T00:00:00Z"
+    },
+    {
+      "sourceDirectory": "on-demand-weather",
+      "summary": "Adds an on-demand Banking action backed by the no-auth Open-Meteo weather API.",
+      "free": true,
+      "sourceUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/tree/main/on-demand-weather",
+      "supportUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/issues",
+      "releaseNotes": "Initial official catalog release of the on-demand weather demonstration plugin.",
+      "publishedAt": "2026-08-04T00:00:00Z"
+    }
+  ]
+}
+

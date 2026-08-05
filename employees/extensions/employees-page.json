@@ -1,0 +1,678 @@
+{
+  "schemaVersion": "1.0",
+  "extensionId": "employees-page",
+  "type": "new_page",
+  "name": "Employees Page",
+  "version": "1.0.0",
+  "description": "Provides a company-scoped employee list with standard CRUD affordances.",
+  "targets": {
+    "companyScoped": true,
+    "supportedEntityIds": [
+      "company"
+    ]
+  },
+  "definition": {
+    "page": {
+      "pageId": "employees",
+      "pageKind": "list",
+      "title": "Employees",
+      "icon": "TeamOutlined",
+      "route": "/extensions/employees",
+      "dataSource": {
+        "kind": "resource",
+        "resource": "employees"
+      }
+    },
+    "fields": [
+      {
+        "fieldId": "employeeNumber",
+        "label": "Employee Number",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 160
+          },
+          "drawer": {
+            "input": "text"
+          }
+        },
+        "tooltip": "Unique employee identifier shown on employee records, payroll run lines, pay stubs, and payroll exports. Not used in numeric calculations."
+      },
+      {
+        "fieldId": "firstName",
+        "label": "First Name",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 160
+          },
+          "drawer": {
+            "input": "text"
+          }
+        },
+        "tooltip": "Employee first name. Used with Last Name to identify the employee on payroll run lines and pay stubs; not used in calculations."
+      },
+      {
+        "fieldId": "lastName",
+        "label": "Last Name",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 160
+          },
+          "drawer": {
+            "input": "text"
+          }
+        },
+        "tooltip": "Employee last name. Used with First Name to identify the employee on payroll run lines and pay stubs; not used in calculations."
+      },
+      {
+        "fieldId": "email",
+        "label": "Email",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 220
+          },
+          "drawer": {
+            "input": "text"
+          }
+        },
+        "tooltip": "Employee contact email for reference. Not used in payroll calculations."
+      },
+      {
+        "fieldId": "department",
+        "label": "Department",
+        "dataType": "string",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 180
+          },
+          "drawer": {
+            "input": "select",
+            "options": {
+              "kind": "static",
+              "items": [
+                {
+                  "value": "finance",
+                  "label": "Finance"
+                },
+                {
+                  "value": "operations",
+                  "label": "Operations"
+                },
+                {
+                  "value": "sales",
+                  "label": "Sales"
+                },
+                {
+                  "value": "engineering",
+                  "label": "Engineering"
+                },
+                {
+                  "value": "people",
+                  "label": "People"
+                }
+              ]
+            }
+          }
+        },
+        "tooltip": "Optional department label copied into payroll run lines for reporting and review. Not used in calculations."
+      },
+      {
+        "fieldId": "jobTitle",
+        "label": "Job Title",
+        "dataType": "string",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 180
+          },
+          "drawer": {
+            "input": "text"
+          }
+        },
+        "tooltip": "Optional job title for the employee record. Not used in payroll calculations."
+      },
+      {
+        "fieldId": "hireDate",
+        "label": "Hire Date",
+        "dataType": "date",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 140
+          },
+          "drawer": {
+            "input": "date"
+          }
+        },
+        "tooltip": "Employee start date for reference and future eligibility rules. Not used in current payroll calculations."
+      },
+      {
+        "fieldId": "employmentStatus",
+        "label": "Status",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 140
+          },
+          "drawer": {
+            "input": "select",
+            "options": {
+              "kind": "static",
+              "items": [
+                {
+                  "value": "active",
+                  "label": "Active"
+                },
+                {
+                  "value": "leave",
+                  "label": "On Leave"
+                },
+                {
+                  "value": "inactive",
+                  "label": "Inactive"
+                }
+              ]
+            }
+          }
+        },
+        "tooltip": "Controls whether an employee is active, on leave, or inactive for payroll selection and review. Not used directly in numeric calculations."
+      },
+      {
+        "fieldId": "annualSalary",
+        "label": "Annual Salary",
+        "dataType": "currency",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 140
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Reference annual salary. Current payroll run calculations use Annual Pay Rate on each payroll line, divided by Pay Periods Per Year."
+      },
+      {
+        "fieldId": "payType",
+        "label": "Pay Type",
+        "dataType": "string",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 140
+          },
+          "drawer": {
+            "input": "select",
+            "options": {
+              "kind": "static",
+              "items": [
+                {
+                  "value": "employee",
+                  "label": "Employee"
+                },
+                {
+                  "value": "contractor",
+                  "label": "Contractor"
+                }
+              ]
+            }
+          }
+        },
+        "tooltip": "Employee or contractor classification for payroll review. Not used directly in current numeric calculations."
+      },
+      {
+        "fieldId": "paySchedule",
+        "label": "Pay Schedule",
+        "dataType": "string",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 140
+          },
+          "drawer": {
+            "input": "select",
+            "options": {
+              "kind": "static",
+              "items": [
+                {
+                  "value": "weekly",
+                  "label": "Weekly"
+                },
+                {
+                  "value": "biweekly",
+                  "label": "Biweekly"
+                },
+                {
+                  "value": "semimonthly",
+                  "label": "Semimonthly"
+                },
+                {
+                  "value": "monthly",
+                  "label": "Monthly"
+                }
+              ]
+            }
+          }
+        },
+        "tooltip": "Default pay frequency for the employee. Not used directly in current payroll run formulas."
+      },
+      {
+        "fieldId": "payrollState",
+        "label": "Payroll State",
+        "dataType": "string",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 120
+          },
+          "drawer": {
+            "input": "text"
+          }
+        },
+        "tooltip": "State payroll jurisdiction reference for future tax rules. Not used directly in current payroll calculations."
+      },
+      {
+        "fieldId": "payrollProfile",
+        "label": "Payroll Profile",
+        "dataType": "string",
+        "required": false,
+        "defaultValue": "Default",
+        "ui": {
+          "table": {
+            "visible": false
+          },
+          "drawer": {
+            "input": "text",
+            "visible": false
+          }
+        },
+        "tooltip": "Hidden profile key. Defaults to Default and is intended to map this employee to a payroll settings profile in future payroll logic."
+      },
+      {
+        "fieldId": "defaultHoursPerPeriod",
+        "label": "Default Hours Per Period",
+        "dataType": "number",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 160
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Default hours for data entry. When copied to Total Hours on a payroll run line, it drives regular hours, overtime hours, regular pay, overtime pay, gross pay, taxes, benefits, net pay, and employer cost."
+      },
+      {
+        "fieldId": "overtimeThreshold",
+        "label": "Overtime Threshold",
+        "dataType": "number",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 150
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Employee-level overtime threshold reference. Payroll run formulas currently use the run header Overtime Threshold to split Total Hours into Regular Hours and OT Hours."
+      },
+      {
+        "fieldId": "overtimeMultiplier",
+        "label": "Overtime Multiplier",
+        "dataType": "number",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 150
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Employee-level overtime multiplier reference. Payroll run formulas currently use the run header Overtime Multiplier when Overtime Hourly Rate is blank."
+      },
+      {
+        "fieldId": "hourlyRate",
+        "label": "Hourly Rate",
+        "dataType": "currency",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 140
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Reference hourly rate. Current payroll run formulas use Regular Hourly Rate on each payroll line for hourly regular pay."
+      },
+      {
+        "fieldId": "payRateUnit",
+        "label": "Pay Rate Unit",
+        "dataType": "string",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 140
+          },
+          "drawer": {
+            "input": "select",
+            "options": {
+              "kind": "static",
+              "items": [
+                {
+                  "value": "hour",
+                  "label": "Hour"
+                },
+                {
+                  "value": "week",
+                  "label": "Week"
+                },
+                {
+                  "value": "month",
+                  "label": "Month"
+                },
+                {
+                  "value": "year",
+                  "label": "Year"
+                }
+              ]
+            }
+          }
+        },
+        "tooltip": "Default pay unit copied to payroll lines. Determines whether the run uses hourly, weekly, monthly, or annual pay formulas for Regular Pay."
+      },
+      {
+        "fieldId": "regularHourlyRate",
+        "label": "Regular Hourly Rate",
+        "dataType": "currency",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 160
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Default hourly rate copied to payroll lines. For hourly employees, Regular Pay = Regular Hours x Regular Hourly Rate."
+      },
+      {
+        "fieldId": "overtimeHourlyRate",
+        "label": "Overtime Hourly Rate",
+        "dataType": "currency",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 160
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Default overtime hourly rate copied to payroll lines. If present, OT Pay = OT Hours x this rate; otherwise OT Rate = Regular Hourly Rate x Overtime Multiplier."
+      },
+      {
+        "fieldId": "weeklyPayRate",
+        "label": "Weekly Pay Rate",
+        "dataType": "currency",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 150
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Default weekly pay rate copied to payroll lines. For weekly pay, Regular Pay = Weekly Pay Rate x Weeks In Period."
+      },
+      {
+        "fieldId": "monthlyPayRate",
+        "label": "Monthly Pay Rate",
+        "dataType": "currency",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 150
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Default monthly pay rate copied to payroll lines. For monthly pay, Regular Pay = Monthly Pay Rate x Months In Period."
+      },
+      {
+        "fieldId": "annualPayRate",
+        "label": "Annual Pay Rate",
+        "dataType": "currency",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 150
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Default annual pay rate copied to payroll lines. For annual pay, Regular Pay = Annual Pay Rate / Pay Periods Per Year."
+      },
+      {
+        "fieldId": "salaryPerPeriod",
+        "label": "Salary Per Period",
+        "dataType": "currency",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 150
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Reference salary amount per pay period. Not used by current payroll run formulas unless copied into another payroll line pay field."
+      },
+      {
+        "fieldId": "employeeTaxRate",
+        "label": "Employee Tax Rate",
+        "dataType": "number",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 150
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Employee-specific tax override reference. When copied to Employee Tax Rate Override on a payroll line, Employee Taxes = Gross Pay x this rate."
+      },
+      {
+        "fieldId": "employerTaxRate",
+        "label": "Employer Tax Rate",
+        "dataType": "number",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 150
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Employer-specific tax override reference. When copied to Employer Tax Rate Override on a payroll line, Employer Taxes = Gross Pay x this rate."
+      },
+      {
+        "fieldId": "benefitDeductionPerPeriod",
+        "label": "Benefit Deduction Per Period",
+        "dataType": "currency",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 180
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Employee benefit deduction reference. When copied to Employee Benefit Flat Override on a payroll line, it is added to employee benefits deducted from gross pay."
+      },
+      {
+        "fieldId": "employeeBenefitRate",
+        "label": "Employee Benefit Rate",
+        "dataType": "number",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 170
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Employee benefit percentage reference. When copied to Employee Benefit Rate Override on a payroll line, Employee Benefits include Gross Pay x this rate."
+      },
+      {
+        "fieldId": "employerBenefitCostPerPeriod",
+        "label": "Employer Benefit Cost Per Period",
+        "dataType": "currency",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 200
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Employer benefit cost reference. When copied to Employer Benefit Flat Override on a payroll line, it is added to employer-paid benefits and total employer cost."
+      },
+      {
+        "fieldId": "employerBenefitRate",
+        "label": "Employer Benefit Rate",
+        "dataType": "number",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 170
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Employer benefit percentage reference. When copied to Employer Benefit Rate Override on a payroll line, Employer Benefits include Gross Pay x this rate."
+      },
+      {
+        "fieldId": "workersCompRate",
+        "label": "Workers Comp Rate",
+        "dataType": "number",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 160
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Workers compensation rate reference for future payroll cost rules. Not used directly in current payroll run formulas."
+      },
+      {
+        "fieldId": "directDepositEnabled",
+        "label": "Direct Deposit Enabled",
+        "dataType": "boolean",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 160
+          },
+          "drawer": {
+            "input": "checkbox"
+          }
+        },
+        "tooltip": "Indicates whether direct deposit is enabled for the employee. Not used in payroll calculations."
+      },
+      {
+        "fieldId": "notes",
+        "label": "Notes",
+        "dataType": "string",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false
+          },
+          "drawer": {
+            "input": "textarea"
+          }
+        },
+        "tooltip": "Internal employee notes. Not used in payroll calculations."
+      }
+    ],
+    "pageActions": [
+      {
+        "actionId": "new",
+        "enabled": true
+      },
+      {
+        "actionId": "refresh",
+        "enabled": true
+      }
+    ],
+    "rowActions": [
+      {
+        "actionId": "view",
+        "enabled": true
+      },
+      {
+        "actionId": "edit",
+        "enabled": true
+      },
+      {
+        "actionId": "delete",
+        "enabled": true
+      }
+    ]
+  }
+}

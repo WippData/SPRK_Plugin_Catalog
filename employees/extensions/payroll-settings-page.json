@@ -1,0 +1,329 @@
+{
+  "schemaVersion": "1.0",
+  "extensionId": "payroll-settings-page",
+  "type": "new_page",
+  "name": "Payroll Settings Page",
+  "version": "1.0.0",
+  "description": "Provides row-based payroll configuration for taxes, benefits, PTO, liabilities, and GL mappings.",
+  "targets": {
+    "companyScoped": true,
+    "supportedEntityIds": [
+      "company"
+    ]
+  },
+  "definition": {
+    "page": {
+      "pageId": "payroll-settings",
+      "pageKind": "list",
+      "title": "Payroll Settings",
+      "icon": "SettingOutlined",
+      "route": "/extensions/payroll-settings",
+      "dataSource": {
+        "kind": "resource",
+        "resource": "payrollSettings"
+      }
+    },
+    "fields": [
+      {
+        "fieldId": "payrollProfile",
+        "label": "Payroll Profile",
+        "dataType": "string",
+        "required": false,
+        "defaultValue": "Default",
+        "ui": {
+          "table": {
+            "visible": false
+          },
+          "drawer": {
+            "input": "text",
+            "visible": false
+          }
+        },
+        "tooltip": "Hidden profile key. Defaults to Default and groups payroll setting rows for future employee-to-profile mapping."
+      },
+      {
+        "fieldId": "name",
+        "label": "Name",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 260
+          },
+          "drawer": {
+            "input": "text"
+          }
+        },
+        "tooltip": "Readable setting name, such as Federal Tax Social Security or PTO Accrual. Not used in calculations by itself."
+      },
+      {
+        "fieldId": "section",
+        "label": "Section",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 140
+          },
+          "drawer": {
+            "input": "select",
+            "options": {
+              "kind": "static",
+              "items": [
+                {
+                  "value": "taxes",
+                  "label": "Taxes"
+                },
+                {
+                  "value": "benefits",
+                  "label": "Benefits"
+                },
+                {
+                  "value": "pto",
+                  "label": "PTO"
+                },
+                {
+                  "value": "earnings",
+                  "label": "Earnings"
+                },
+                {
+                  "value": "deductions",
+                  "label": "Deductions"
+                },
+                {
+                  "value": "reimbursements",
+                  "label": "Reimbursements"
+                },
+                {
+                  "value": "other",
+                  "label": "Other"
+                }
+              ]
+            }
+          }
+        },
+        "tooltip": "Groups the setting into Taxes, Benefits, PTO, Earnings, Deductions, Reimbursements, or Other for payroll logic and review."
+      },
+      {
+        "fieldId": "valueType",
+        "label": "Value Type",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 150
+          },
+          "drawer": {
+            "input": "select",
+            "options": {
+              "kind": "static",
+              "items": [
+                {
+                  "value": "percentage",
+                  "label": "Percentage"
+                },
+                {
+                  "value": "flat",
+                  "label": "Flat Rate"
+                },
+                {
+                  "value": "calculation",
+                  "label": "Calculation"
+                },
+                {
+                  "value": "hours",
+                  "label": "Hours"
+                }
+              ]
+            }
+          }
+        },
+        "tooltip": "Defines how Value should be interpreted by payroll logic: percentage, flat amount, calculation rule, or hours."
+      },
+      {
+        "fieldId": "value",
+        "label": "Value",
+        "dataType": "number",
+        "required": true,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 120
+          },
+          "drawer": {
+            "input": "number"
+          }
+        },
+        "tooltip": "Numeric setting amount. Percentage rows should be entered as decimals, such as 0.062 for 6.2%. Payroll setting rows are configuration for plugin payroll logic and are not automatically consumed by the current payroll run calculator."
+      },
+      {
+        "fieldId": "paidBy",
+        "label": "Paid By",
+        "dataType": "string",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 150
+          },
+          "drawer": {
+            "input": "select",
+            "options": {
+              "kind": "static",
+              "items": [
+                {
+                  "value": "employee",
+                  "label": "Employee"
+                },
+                {
+                  "value": "employer",
+                  "label": "Employer"
+                },
+                {
+                  "value": "both",
+                  "label": "Both"
+                },
+                {
+                  "value": "none",
+                  "label": "None"
+                }
+              ]
+            }
+          }
+        },
+        "tooltip": "Identifies whether the row is employee-paid, employer-paid, both, or informational. This determines whether payroll logic treats the amount as a deduction, employer cost, or both."
+      },
+      {
+        "fieldId": "cashTreatment",
+        "label": "Cash Treatment",
+        "dataType": "string",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 190
+          },
+          "drawer": {
+            "input": "select",
+            "options": {
+              "kind": "static",
+              "items": [
+                {
+                  "value": "cash",
+                  "label": "Cash"
+                },
+                {
+                  "value": "non_cash_liability",
+                  "label": "Non-Cash Liability"
+                }
+              ]
+            }
+          }
+        },
+        "tooltip": "Controls whether the setting affects cash payroll or is tracked as a non-cash liability, such as PTO accrual."
+      },
+      {
+        "fieldId": "calculationBasis",
+        "label": "Calculation Basis",
+        "dataType": "string",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false,
+            "width": 180
+          },
+          "drawer": {
+            "input": "select",
+            "options": {
+              "kind": "static",
+              "items": [
+                {
+                  "value": "gross_pay",
+                  "label": "Gross Pay"
+                },
+                {
+                  "value": "regular_pay",
+                  "label": "Regular Pay"
+                },
+                {
+                  "value": "hours",
+                  "label": "Hours"
+                },
+                {
+                  "value": "fixed_per_period",
+                  "label": "Fixed Per Period"
+                },
+                {
+                  "value": "custom",
+                  "label": "Custom"
+                }
+              ]
+            }
+          }
+        },
+        "tooltip": "Defines the base used by payroll logic for percentage or calculation rows, such as gross pay, regular pay, hours, fixed per period, or custom."
+      },
+      {
+        "fieldId": "accountId",
+        "label": "GL Account",
+        "dataType": "string",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": true,
+            "width": 240
+          },
+          "drawer": {
+            "input": "page_link",
+            "pageLink": {
+              "targetPageId": "accounts"
+            }
+          }
+        },
+        "tooltip": "Chart of Accounts link used when this setting produces a payroll posting or liability. Not used in numeric calculations directly."
+      },
+      {
+        "fieldId": "notes",
+        "label": "Notes",
+        "dataType": "string",
+        "required": false,
+        "ui": {
+          "table": {
+            "visible": false
+          },
+          "drawer": {
+            "input": "textarea"
+          }
+        },
+        "tooltip": "Internal notes for the setting row. Not used in calculations."
+      }
+    ],
+    "pageActions": [
+      {
+        "actionId": "new",
+        "enabled": true
+      },
+      {
+        "actionId": "refresh",
+        "enabled": true
+      }
+    ],
+    "rowActions": [
+      {
+        "actionId": "view",
+        "enabled": true
+      },
+      {
+        "actionId": "edit",
+        "enabled": true
+      },
+      {
+        "actionId": "delete",
+        "enabled": true
+      }
+    ]
+  }
+}

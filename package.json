@@ -1,0 +1,10 @@
+{
+  "name": "sprk-plugin-catalog",
+  "private": true,
+  "scripts": {
+    "build": "python3 scripts/catalog.py build",
+    "check": "python3 scripts/catalog.py check",
+    "test": "python3 scripts/catalog.py check"
+  }
+}
+

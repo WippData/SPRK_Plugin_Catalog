@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "github-repositories-connector",
+  "type": "connector",
+  "name": "GitHub Repositories Connector",
+  "version": "1.0.0",
+  "description": "Uses a write-only GitHub personal access token to fetch the current user's repositories.",
+  "targets": {
+    "companyScoped": true
+  },
+  "resources": [
+    {
+      "resourceId": "github-connection",
+      "kind": "connector",
+      "schemaVersion": 1,
+      "scope": "company"
+    }
+  ],
+  "definition": {
+    "authMethods": [
+      {
+        "authMethodId": "github-token",
+        "label": "GitHub personal access token",
+        "type": "api_key",
+        "credentialFields": [
+          {
+            "key": "github-token",
+            "label": "GitHub personal access token",
+            "kind": "api_key",
+            "required": true
+          }
+        ],
+        "injections": [
+          {
+            "credentialKey": "github-token",
+            "in": "header",
+            "name": "Authorization",
+            "prefix": "Bearer "
+          }
+        ]
+      }
+    ],
+    "api": {
+      "baseUrl": "https://api.github.com",
+      "executionPolicy": {
+        "attemptTimeoutMs": 20000,
+        "totalTimeoutMs": 60000,
+        "retry": {
+          "maxAttempts": 3,
+          "initialBackoffMs": 500,
+          "maxBackoffMs": 5000,
+          "retryOn": ["connection_error", "timeout", "408", "429", "500", "502", "503", "504"]
+        }
+      },
+      "operations": [
+        {
+          "operationId": "fetch-repositories",
+          "label": "Fetch repositories",
+          "method": "GET",
+          "path": "/user/repos",
+          "query": {
+            "visibility": "all",
+            "affiliation": "owner,collaborator,organization_member",
+            "sort": "updated",
+            "per_page": 100
+          },
+          "connectionDiscovery": {
+            "accountsPath": "$",
+            "fields": {
+              "externalAccountId": "id",
+              "displayName": "full_name",
+              "institutionName": "owner.login",
+              "type": "visibility",
+              "subtype": "language"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

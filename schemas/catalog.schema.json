@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/WippData/SPRK_Plugin_Catalog/blob/main/schemas/catalog.schema.json",
+  "title": "SPRK Official Plugin Catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "catalogVersion",
+    "publisher",
+    "plugins"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "catalogVersion": {
+      "const": 1
+    },
+    "publisher": {
+      "$ref": "#/$defs/publisher"
+    },
+    "plugins": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/plugin"
+      }
+    }
+  },
+  "$defs": {
+    "publisher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "website",
+        "supportUrl"
+      ],
+      "properties": {
+        "id": {
+          "const": "sprk"
+        },
+        "name": {
+          "const": "SPRK"
+        },
+        "website": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "supportUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        }
+      }
+    },
+    "plugin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "summary",
+        "free",
+        "sourceUrl",
+        "supportUrl",
+        "releases"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "free": {
+          "const": true
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://github\\.com/WippData/SPRK_Plugin_Catalog/"
+        },
+        "supportUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "releases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/release"
+          }
+        }
+      }
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "schemaVersion",
+        "fileName",
+        "assetUrl",
+        "sha256",
+        "minAppVersion",
+        "releaseNotes",
+        "publishedAt"
+      ],
+      "properties": {
+        "version": {
+          "$ref": "#/$defs/semver"
+        },
+        "schemaVersion": {
+          "const": "2"
+        },
+        "fileName": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]+\\.[0-9]+\\.[0-9]+\\.zip$"
+        },
+        "assetUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://github\\.com/WippData/SPRK_Plugin_Catalog/releases/download/"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "minAppVersion": {
+          "$ref": "#/$defs/semver"
+        },
+        "releaseNotes": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publishedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    }
+  }
+}
+

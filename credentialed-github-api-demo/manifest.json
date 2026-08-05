@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "demo-credentialed-github-api",
+  "name": "Credentialed GitHub API Demo",
+  "version": "1.1.0",
+  "publisher": {
+    "id": "sprk",
+    "name": "SPRK"
+  },
+  "description": "Demonstrates one company-scoped, host-rendered plugin configuration and credentialed API request through SPRK's secure connector broker.",
+  "runtime": {
+    "minAppVersion": "1.0.0"
+  },
+  "capabilities": {
+    "internetAccess": {
+      "required": true,
+      "reason": "Fetches repositories from api.github.com only when the user clicks Fetch repositories."
+    },
+    "api.execute": {
+      "required": true,
+      "methods": ["GET"]
+    }
+  },
+  "extensionManifests": [
+    {
+      "extensionId": "github-repositories-connector",
+      "path": "extensions/github-repositories-connector.json",
+      "sha256": "f30f5ed19a7837e747a7ea389c18e18c403cb444b41e81a1e4134c241491696a"
+    },
+    {
+      "extensionId": "github-plugin-configuration",
+      "path": "extensions/github-plugin-configuration.json",
+      "sha256": "d6da83f0b9afd6e9815878e7d888805fada607909c1e6b346e817d537550c278"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "schemas/catalog.schema.json",
+  "catalogVersion": 1,
+  "publisher": {
+    "id": "sprk",
+    "name": "SPRK",
+    "website": "https://sprksystems.com",
+    "supportUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/issues"
+  },
+  "plugins": [
+    {
+      "id": "demo-credentialed-github-api",
+      "name": "Credentialed GitHub API Demo",
+      "summary": "Demonstrates a company-scoped GitHub connection with write-only credentials and host-rendered configuration.",
+      "free": true,
+      "sourceUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/tree/main/credentialed-github-api-demo",
+      "supportUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/issues",
+      "releases": [
+        {
+          "version": "1.1.0",
+          "schemaVersion": "2",
+          "fileName": "demo-credentialed-github-api-1.1.0.zip",
+          "assetUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/releases/download/demo-credentialed-github-api-v1.1.0/demo-credentialed-github-api-1.1.0.zip",
+          "sha256": "81a802f6e0ad2e7807bfb3bbbe3d08ae15a2e89d449958940fc9dac285069e8d",
+          "minAppVersion": "1.0.0",
+          "releaseNotes": "Initial official catalog release of the credentialed GitHub API demonstration plugin.",
+          "publishedAt": "2026-08-04T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "demo-on-demand-weather",
+      "name": "On-Demand Weather Demo",
+      "summary": "Adds an on-demand Banking action backed by the no-auth Open-Meteo weather API.",
+      "free": true,
+      "sourceUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/tree/main/on-demand-weather",
+      "supportUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/issues",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "schemaVersion": "2",
+          "fileName": "demo-on-demand-weather-1.0.0.zip",
+          "assetUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/releases/download/demo-on-demand-weather-v1.0.0/demo-on-demand-weather-1.0.0.zip",
+          "sha256": "d28bda262239a47b7d90cfccfc36c338c4b95bc4e956f542b84a4daa99b753ca",
+          "minAppVersion": "1.0.0",
+          "releaseNotes": "Initial official catalog release of the on-demand weather demonstration plugin.",
+          "publishedAt": "2026-08-04T00:00:00Z"
+        }
+      ]
+    }
+  ]
+}
