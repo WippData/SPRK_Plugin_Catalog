@@ -4,7 +4,8 @@
   "scripts": {
     "build": "python3 scripts/catalog.py build",
     "check": "python3 scripts/catalog.py check",
-    "test": "python3 scripts/catalog.py check"
+    "validate:plugin": "python3 scripts/validate_plugin_folder.py",
+    "test:docs": "python3 -m unittest discover -s tests -p 'test*.py'",
+    "test": "npm run test:docs && python3 scripts/catalog.py check"
   }
 }
-

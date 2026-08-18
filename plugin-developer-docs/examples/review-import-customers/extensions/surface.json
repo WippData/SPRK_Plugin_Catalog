@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "customer-import-surface",
+  "type": "existing_page_actions",
+  "name": "Example Customer Import Surface",
+  "version": "1.0.0",
+  "targets": {
+    "companyScoped": true
+  },
+  "definition": {
+    "targetPageKey": "customers",
+    "actions": [
+      {
+        "actionId": "import-customers",
+        "label": "Import from example provider",
+        "kind": "run_action",
+        "action": {
+          "extensionId": "customer-import-actions",
+          "actionId": "import-customers"
+        }
+      }
+    ]
+  }
+}

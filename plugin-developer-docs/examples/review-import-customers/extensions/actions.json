@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "customer-import-actions",
+  "type": "actions",
+  "name": "Example Customer Import Actions",
+  "version": "1.0.0",
+  "targets": {
+    "companyScoped": true
+  },
+  "definition": {
+    "actions": [
+      {
+        "actionId": "import-customers",
+        "label": "Import customers from example provider",
+        "trigger": "manual",
+        "steps": [
+          {
+            "id": "fetch-customers",
+            "command": "api.execute",
+            "with": {
+              "connector": {
+                "extensionId": "customer-connector",
+                "resourceId": "customer-connection",
+                "operationId": "list-customers"
+              },
+              "connectionId": "$context.connectionId",
+              "safeOutputs": [
+                {
+                  "collection": "customers",
+                  "itemsPath": "customers",
+                  "maxItems": 1000,
+                  "fields": {
+                    "provider-name": {
+                      "path": "name",
+                      "type": "string",
+                      "required": true
+                    },
+                    "provider-company": {
+                      "path": "company",
+                      "type": "string"
+                    },
+                    "provider-email": {
+                      "path": "email",
+                      "type": "string"
+                    },
+                    "provider-phone": {
+                      "path": "phone",
+                      "type": "string"
+                    },
+                    "provider-active": {
+                      "path": "active",
+                      "type": "boolean"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "review-customers",
+            "command": "review.import",
+            "with": {
+              "targetEntity": "customers",
+              "target": {},
+              "source": "$steps.fetch-customers.safeOutput.customers",
+              "fields": {
+                "name": "provider-name",
+                "company": "provider-company",
+                "email": "provider-email",
+                "phone": "provider-phone",
+                "isActive": "provider-active"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

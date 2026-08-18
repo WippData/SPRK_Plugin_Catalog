@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "review-import-customers",
+  "name": "Example Customer Review Import",
+  "version": "1.0.0",
+  "publisher": {
+    "id": "example",
+    "name": "Example Publisher"
+  },
+  "description": "Complete connector-backed customer import that stages rows for native review.",
+  "runtime": {
+    "minAppVersion": "1.0.0"
+  },
+  "capabilities": {
+    "internetAccess": {
+      "required": true,
+      "reason": "Fetches provider customers only when a user starts the import."
+    },
+    "api.execute": {
+      "required": true,
+      "methods": ["GET"]
+    },
+    "actions.run": {
+      "required": true,
+      "allowedTriggers": ["manual"]
+    },
+    "review": {
+      "required": true,
+      "imports": [
+        { "targetEntity": "customers" }
+      ]
+    },
+    "surfaces.contribute": {
+      "required": true,
+      "surfaces": ["customers"]
+    }
+  },
+  "extensionManifests": [
+    {
+      "extensionId": "customer-connector",
+      "path": "extensions/connector.json"
+    },
+    {
+      "extensionId": "customer-configuration",
+      "path": "extensions/configuration.json"
+    },
+    {
+      "extensionId": "customer-import-actions",
+      "path": "extensions/actions.json"
+    },
+    {
+      "extensionId": "customer-import-surface",
+      "path": "extensions/surface.json"
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "bank-import-actions",
+  "type": "actions",
+  "name": "Example Bank Import Actions",
+  "version": "1.0.0",
+  "targets": {
+    "companyScoped": true
+  },
+  "definition": {
+    "actions": [
+      {
+        "actionId": "import-bank-transactions",
+        "label": "Import from example provider",
+        "trigger": "manual",
+        "binding": {
+          "sourceCollection": "accounts",
+          "targetType": "accounts"
+        },
+        "inputs": [
+          {
+            "inputId": "from-date",
+            "label": "From date",
+            "type": "date",
+            "required": true
+          }
+        ],
+        "steps": [
+          {
+            "id": "fetch-transactions",
+            "command": "api.execute",
+            "with": {
+              "connector": {
+                "extensionId": "provider-connector",
+                "resourceId": "provider-connection",
+                "operationId": "list-transactions"
+              },
+              "connectionId": "$context.connectionId",
+              "requestBindings": [
+                {
+                  "source": "$inputs.from-date",
+                  "in": "query",
+                  "name": "from_date"
+                }
+              ],
+              "safeOutputs": [
+                {
+                  "collection": "transactions",
+                  "itemsPath": "transactions",
+                  "maxItems": 1000,
+                  "fields": {
+                    "provider-transaction-id": {
+                      "path": "id",
+                      "type": "string",
+                      "required": true
+                    },
+                    "transaction-date": {
+                      "path": "date",
+                      "type": "date",
+                      "required": true
+                    },
+                    "transaction-amount": {
+                      "path": "amount",
+                      "type": "number",
+                      "required": true
+                    },
+                    "description": {
+                      "path": "description",
+                      "type": "string"
+                    },
+                    "currency": {
+                      "path": "currency",
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "review-transactions",
+            "command": "review.import",
+            "with": {
+              "targetEntity": "bank_register",
+              "target": {
+                "accountId": "$context.targetId"
+              },
+              "source": "$steps.fetch-transactions.safeOutput.transactions",
+              "fields": {
+                "sourceTransactionId": "provider-transaction-id",
+                "date": "transaction-date",
+                "amount": "transaction-amount",
+                "description": "description",
+                "currency": "currency"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

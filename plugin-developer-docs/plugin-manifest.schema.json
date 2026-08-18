@@ -1,0 +1,287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.sprk.app/plugin-sdk/schema-v2/plugin-manifest.schema.json",
+  "title": "SPRK schema-v2 API for new plugins",
+  "description": "Normative authoring schema for a new plugin root manifest.json or extension manifest. It intentionally excludes compatibility-only authoring shapes. The Go validator remains authoritative for bundle-wide references and source-catalog-dependent rules.",
+  "oneOf": [
+    { "$ref": "#/$defs/PluginManifest" },
+    { "$ref": "#/$defs/ExtensionManifest" }
+  ],
+  "$defs": {
+    "Identifier": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+    "NonBlankString": { "type": "string", "pattern": ".*\\S.*" },
+    "DataType": { "enum": ["string", "number", "boolean", "date", "datetime", "currency"] },
+    "HTTPMethod": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+    "StringMap": { "type": "object", "additionalProperties": { "type": "string" } },
+    "JSONMap": { "type": "object", "additionalProperties": true },
+
+    "PluginManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "pluginId", "name", "version", "publisher", "runtime", "capabilities"],
+      "properties": {
+        "schemaVersion": { "const": "2" },
+        "pluginId": { "$ref": "#/$defs/Identifier" },
+        "name": { "$ref": "#/$defs/NonBlankString" },
+        "version": { "$ref": "#/$defs/NonBlankString" },
+        "publisher": { "$ref": "#/$defs/Publisher" },
+        "description": { "type": "string" },
+        "runtime": { "$ref": "#/$defs/RuntimeRequirements" },
+        "capabilities": { "$ref": "#/$defs/PluginCapabilities" },
+        "extensionManifests": { "type": "array", "items": { "$ref": "#/$defs/ExtensionManifestRef" } },
+        "signing": { "$ref": "#/$defs/SigningInfo" }
+      }
+    },
+    "Publisher": {
+      "type": "object", "additionalProperties": false, "required": ["id", "name"],
+      "properties": { "id": { "$ref": "#/$defs/NonBlankString" }, "name": { "$ref": "#/$defs/NonBlankString" }, "supportEmail": { "type": "string" }, "website": { "type": "string" } }
+    },
+    "RuntimeRequirements": {
+      "type": "object", "additionalProperties": false, "required": ["minAppVersion"],
+      "properties": { "minAppVersion": { "$ref": "#/$defs/NonBlankString" }, "maxAppVersion": { "type": "string" } }
+    },
+    "PluginCapabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "internetAccess": { "$ref": "#/$defs/InternetAccessCapability" },
+        "api.execute": { "$ref": "#/$defs/APIExecuteCapability" },
+        "plugin.bindings.manage": { "$ref": "#/$defs/BindingsCapability" },
+        "actions.run": { "$ref": "#/$defs/ActionsCapability" },
+        "data": { "$ref": "#/$defs/DataCapability" },
+        "review": { "$ref": "#/$defs/ReviewCapability" },
+        "surfaces.contribute": { "$ref": "#/$defs/SurfacesCapability" },
+        "reports.query": { "$ref": "#/$defs/ReportsQueryCapability" }
+      }
+    },
+    "InternetAccessCapability": {
+      "type": "object", "additionalProperties": false, "required": ["required"],
+      "properties": { "required": { "type": "boolean" }, "reason": { "type": "string" } },
+      "if": { "properties": { "required": { "const": true } }, "required": ["required"] },
+      "then": { "required": ["reason"], "properties": { "reason": { "$ref": "#/$defs/NonBlankString" } } }
+    },
+    "APIExecuteCapability": {
+      "type": "object", "additionalProperties": false, "required": ["required"],
+      "properties": { "required": { "type": "boolean" }, "methods": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/HTTPMethod" } } },
+      "if": { "properties": { "required": { "const": true } }, "required": ["required"] },
+      "then": { "required": ["methods"], "properties": { "methods": { "minItems": 1 } } }
+    },
+    "BindingsCapability": {
+      "type": "object", "additionalProperties": false, "required": ["required"],
+      "properties": { "required": { "type": "boolean" }, "targets": { "type": "array", "uniqueItems": true, "items": { "enum": ["accounts", "customers", "items", "vendors"] } } },
+      "if": { "properties": { "required": { "const": true } }, "required": ["required"] }, "then": { "required": ["targets"], "properties": { "targets": { "minItems": 1 } } }
+    },
+    "ActionsCapability": {
+      "type": "object", "additionalProperties": false, "required": ["required"],
+      "properties": { "required": { "type": "boolean" }, "allowedTriggers": { "type": "array", "uniqueItems": true, "items": { "const": "manual" } } },
+      "if": { "properties": { "required": { "const": true } }, "required": ["required"] }, "then": { "required": ["allowedTriggers"], "properties": { "allowedTriggers": { "contains": { "const": "manual" } } } }
+    },
+    "DataCapability": {
+      "type": "object", "additionalProperties": false, "required": ["required"],
+      "properties": { "required": { "type": "boolean" }, "sprk": { "type": "array", "items": { "$ref": "#/$defs/DataEntityGrant" } } },
+      "if": { "properties": { "required": { "const": true } }, "required": ["required"] }, "then": { "required": ["sprk"], "properties": { "sprk": { "minItems": 1 } } }
+    },
+    "DataEntityGrant": {
+      "type": "object", "additionalProperties": false, "required": ["entity", "operations"],
+      "properties": { "entity": { "enum": ["accounts", "customers", "items", "vendors"] }, "operations": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["list", "get", "resolve"] } } }
+    },
+    "ReviewCapability": {
+      "type": "object", "additionalProperties": false, "required": ["required"],
+      "properties": { "required": { "type": "boolean" }, "imports": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["targetEntity"], "properties": { "targetEntity": { "enum": ["bank_register", "accounts", "customers", "vendors", "items"] } } } } },
+      "if": { "properties": { "required": { "const": true } }, "required": ["required"] }, "then": { "required": ["imports"], "properties": { "imports": { "minItems": 1 } } }
+    },
+    "SurfacesCapability": {
+      "type": "object", "additionalProperties": false, "required": ["required"],
+      "properties": { "required": { "type": "boolean" }, "surfaces": { "type": "array", "uniqueItems": true, "items": { "enum": ["banking.import.source.actions", "chart", "customers", "vendors", "items", "reports.catalog.entries"] } } },
+      "if": { "properties": { "required": { "const": true } }, "required": ["required"] }, "then": { "required": ["surfaces"], "properties": { "surfaces": { "minItems": 1 } } }
+    },
+    "ReportsQueryCapability": {
+      "type": "object", "additionalProperties": false, "required": ["required"],
+      "properties": { "required": { "type": "boolean" }, "sources": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/ReportSourceGrant" } } },
+      "if": { "properties": { "required": { "const": true } }, "required": ["required"] }, "then": { "required": ["sources"], "properties": { "sources": { "minItems": 1 } } }
+    },
+    "ReportSourceGrant": {
+      "type": "object", "additionalProperties": false, "required": ["sourceId", "sourceVersion"],
+      "properties": { "sourceId": { "enum": ["gl.lines", "invoice.lines", "bank.register"] }, "sourceVersion": { "const": "1" } }
+    },
+    "ExtensionManifestRef": {
+      "type": "object", "additionalProperties": false, "required": ["extensionId", "path"],
+      "properties": { "extensionId": { "$ref": "#/$defs/NonBlankString" }, "path": { "type": "string" }, "sha256": { "type": "string" } }
+    },
+    "SigningInfo": { "type": "object", "additionalProperties": false, "properties": { "signature": { "type": "string" }, "publicKeyId": { "type": "string" } } },
+
+    "ExtensionManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "extensionId", "type", "name", "version", "definition"],
+      "properties": {
+        "schemaVersion": { "const": "2" }, "extensionId": { "$ref": "#/$defs/Identifier" },
+        "type": { "enum": ["new_page", "expand_page", "accounting_schedule", "report", "connector", "actions", "plugin_configuration", "existing_page_actions"] },
+        "name": { "$ref": "#/$defs/NonBlankString" }, "version": { "$ref": "#/$defs/NonBlankString" }, "description": { "type": "string" },
+        "targets": { "$ref": "#/$defs/ExtensionTargets" }, "permissions": { "$ref": "#/$defs/ExtensionPermissions" },
+        "resources": { "type": "array", "items": { "$ref": "#/$defs/PluginResourceManifest" } }, "definition": {}
+      },
+      "allOf": [
+        { "if": { "properties": { "type": { "const": "new_page" } } }, "then": { "properties": { "definition": { "$ref": "#/$defs/NewPageDefinition" } } } },
+        { "if": { "properties": { "type": { "const": "expand_page" } } }, "then": { "properties": { "definition": { "$ref": "#/$defs/ExpandPageDefinition" } } } },
+        { "if": { "properties": { "type": { "const": "accounting_schedule" } } }, "then": { "properties": { "definition": { "$ref": "#/$defs/AccountingScheduleDefinition" } } } },
+        { "if": { "properties": { "type": { "const": "report" } } }, "then": { "properties": { "definition": { "$ref": "#/$defs/ReportDefinition" } } } },
+        { "if": { "properties": { "type": { "const": "connector" } } }, "then": { "required": ["targets", "resources"], "properties": { "targets": { "required": ["companyScoped"], "properties": { "companyScoped": { "const": true } } }, "definition": { "$ref": "#/$defs/ConnectorDefinition" } } } },
+        { "if": { "properties": { "type": { "const": "actions" } } }, "then": { "properties": { "definition": { "$ref": "#/$defs/ActionsDefinition" } } } },
+        { "if": { "properties": { "type": { "const": "plugin_configuration" } } }, "then": { "required": ["targets", "resources"], "properties": { "targets": { "required": ["companyScoped"], "properties": { "companyScoped": { "const": true } } }, "resources": { "minItems": 1, "maxItems": 1 }, "definition": { "$ref": "#/$defs/PluginConfigurationDefinition" } } } },
+        { "if": { "properties": { "type": { "const": "existing_page_actions" } } }, "then": { "properties": { "definition": { "$ref": "#/$defs/ExistingPageActionsDefinition" } } } }
+      ]
+    },
+    "ExtensionTargets": { "type": "object", "additionalProperties": false, "required": ["companyScoped"], "properties": { "companyScoped": { "type": "boolean" }, "supportedEntityIds": { "type": "array", "items": { "type": "string" } } } },
+    "ExtensionPermissions": { "type": "object", "additionalProperties": false, "properties": { "network": { "type": "boolean" }, "secrets": { "type": "boolean" } } },
+    "PluginResourceManifest": {
+      "type": "object", "additionalProperties": false, "required": ["resourceId", "kind", "schemaVersion", "scope"],
+      "properties": { "resourceId": { "$ref": "#/$defs/Identifier" }, "kind": { "enum": ["records", "connector", "configuration"] }, "schemaVersion": { "const": 1 }, "scope": { "const": "company" }, "access": { "enum": ["user", "host_only"] }, "recordSchema": { "$ref": "#/$defs/PluginRecordSchema" } }
+    },
+    "PluginRecordSchema": { "type": "object", "additionalProperties": false, "required": ["fields"], "properties": { "fields": { "type": "array", "minItems": 1, "maxItems": 128, "items": { "$ref": "#/$defs/PluginRecordField" } } } },
+    "PluginRecordField": { "type": "object", "additionalProperties": false, "required": ["fieldId", "dataType"], "properties": { "fieldId": { "$ref": "#/$defs/Identifier" }, "dataType": { "$ref": "#/$defs/DataType" }, "required": { "type": "boolean" } } },
+
+    "NewPageDefinition": {
+      "oneOf": [
+        { "type": "object", "required": ["page", "lineItems"], "properties": { "page": { "$ref": "#/$defs/TransactionPageConfig" }, "headerFields": { "$ref": "#/$defs/Fields" }, "lineItems": { "$ref": "#/$defs/TransactionLineItems" }, "totalFields": { "$ref": "#/$defs/Fields" }, "calculations": { "type": "array", "items": { "$ref": "#/$defs/TransactionCalculation" } }, "documents": { "type": "array", "items": { "$ref": "#/$defs/TransactionDocument" } }, "posting": { "$ref": "#/$defs/TransactionPosting" }, "importTemplate": { "$ref": "#/$defs/ImportTemplate" }, "pageActions": { "$ref": "#/$defs/PageActions" }, "rowActions": { "$ref": "#/$defs/RowActions" } } },
+        { "type": "object", "required": ["page"], "properties": { "page": { "$ref": "#/$defs/ListPageConfig" }, "fields": { "$ref": "#/$defs/Fields" }, "importTemplate": { "$ref": "#/$defs/ImportTemplate" }, "pageActions": { "$ref": "#/$defs/PageActions" }, "rowActions": { "$ref": "#/$defs/RowActions" } } }
+      ]
+    },
+    "ListPageConfig": { "type": "object", "required": ["pageId", "pageKind", "title"], "properties": { "pageId": { "$ref": "#/$defs/NonBlankString" }, "pageKind": { "enum": ["list", "accounting_schedule"] }, "title": { "$ref": "#/$defs/NonBlankString" }, "icon": { "type": "string" }, "route": { "type": "string" }, "dataSource": { "$ref": "#/$defs/DataSource" } } },
+    "TransactionPageConfig": { "type": "object", "required": ["pageId", "pageKind", "title", "dataSource"], "properties": { "pageId": { "$ref": "#/$defs/NonBlankString" }, "pageKind": { "const": "transaction" }, "title": { "$ref": "#/$defs/NonBlankString" }, "icon": { "type": "string" }, "route": { "type": "string" }, "dataSource": { "$ref": "#/$defs/DataSource" } } },
+    "DataSource": { "type": "object", "required": ["kind", "resourceId"], "properties": { "kind": { "const": "resource" }, "resourceId": { "$ref": "#/$defs/Identifier" }, "where": {}, "sort": {} } },
+    "Fields": { "type": "array", "items": { "$ref": "#/$defs/FieldDefinition" } },
+    "FieldDefinition": { "type": "object", "required": ["fieldId", "label", "dataType", "required"], "properties": { "fieldId": { "$ref": "#/$defs/NonBlankString" }, "label": { "$ref": "#/$defs/NonBlankString" }, "dataType": { "$ref": "#/$defs/DataType" }, "required": { "type": "boolean" }, "tooltip": { "type": "string" }, "defaultValue": {}, "ui": { "$ref": "#/$defs/FieldUI" } } },
+    "FieldUI": { "type": "object", "properties": { "table": { "type": "object", "properties": { "visible": { "type": "boolean" }, "width": { "type": "integer" } } }, "drawer": { "$ref": "#/$defs/FieldDrawer" } } },
+    "FieldDrawer": {
+      "type": "object", "required": ["input"],
+      "properties": { "input": { "enum": ["text", "textarea", "number", "date", "datetime", "select", "multiselect", "checkbox", "reference", "page_link"] }, "visible": { "type": "boolean" }, "options": { "$ref": "#/$defs/DrawerOptions" }, "pageLink": { "$ref": "#/$defs/DrawerPageLink" }, "reference": { "$ref": "#/$defs/DrawerReference" } },
+      "allOf": [{ "if": { "properties": { "input": { "const": "page_link" } } }, "then": { "required": ["pageLink"] } }]
+    },
+    "DrawerOptions": { "type": "object", "required": ["kind"], "properties": { "kind": { "enum": ["static", "query"] }, "items": { "type": "array", "items": { "$ref": "#/$defs/LabeledValue" } } }, "allOf": [{ "if": { "properties": { "kind": { "const": "static" } } }, "then": { "required": ["items"], "properties": { "items": { "minItems": 1 } } } }] },
+    "LabeledValue": { "type": "object", "required": ["value", "label"], "properties": { "value": { "$ref": "#/$defs/NonBlankString" }, "label": { "$ref": "#/$defs/NonBlankString" } } },
+    "DrawerPageLink": { "type": "object", "required": ["targetPageId"], "properties": { "targetPageId": { "$ref": "#/$defs/NonBlankString" }, "paramMap": { "$ref": "#/$defs/StringMap" } } },
+    "DrawerReference": { "type": "object", "required": ["sourcePageId", "valueField", "labelField"], "properties": { "sourcePageId": { "$ref": "#/$defs/NonBlankString" }, "valueField": { "$ref": "#/$defs/NonBlankString" }, "labelField": { "$ref": "#/$defs/NonBlankString" }, "allowCreateInline": { "type": "boolean" } } },
+    "PageActions": { "type": "array", "items": { "$ref": "#/$defs/PageAction" } },
+    "RowActions": { "type": "array", "items": { "$ref": "#/$defs/RowAction" } },
+    "PageAction": { "type": "object", "required": ["actionId", "enabled"], "properties": { "actionId": { "enum": ["new", "refresh", "import", "export_csv", "export_xlsx"] }, "enabled": { "type": "boolean" } } },
+    "RowAction": { "type": "object", "required": ["actionId", "enabled"], "properties": { "actionId": { "enum": ["view", "edit", "delete"] }, "enabled": { "type": "boolean" } } },
+    "ImportTemplate": { "type": "object", "properties": { "key": { "type": "string" }, "templateName": { "type": "string" }, "fileName": { "type": "string" }, "acceptedFormats": { "type": "array", "items": { "type": "string" } }, "requiredColumns": { "$ref": "#/$defs/ImportColumns" }, "optionalColumns": { "$ref": "#/$defs/ImportColumns" }, "templateColumns": { "$ref": "#/$defs/ImportColumns" }, "notes": { "type": "array", "items": { "type": "string" } }, "sampleRows": { "type": "array", "items": { "$ref": "#/$defs/JSONMap" } }, "sheetName": { "type": "string" }, "blankRowCount": { "type": "integer" }, "referenceSheets": { "type": "array", "items": { "$ref": "#/$defs/ImportReferenceSheet" } } } },
+    "ImportColumns": { "type": "array", "items": { "$ref": "#/$defs/ImportColumn" } },
+    "ImportColumn": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "key": { "type": "string" }, "required": { "type": "boolean" }, "description": { "type": "string" } } },
+    "ImportReferenceSheet": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "columns": { "type": "array", "items": { "type": "string" } }, "rows": { "type": "array", "items": { "$ref": "#/$defs/JSONMap" } } } },
+    "TransactionLineItems": { "type": "object", "required": ["fieldId", "label", "columns"], "properties": { "fieldId": { "$ref": "#/$defs/NonBlankString" }, "label": { "$ref": "#/$defs/NonBlankString" }, "columns": { "$ref": "#/$defs/Fields", "minItems": 1 }, "dataEntry": { "type": "object", "properties": { "mode": { "const": "grid" }, "suggestedMinRows": { "type": "integer", "minimum": 0 }, "suggestedMaxRows": { "type": "integer", "minimum": 0 } } } } },
+    "TransactionCalculation": {
+      "type": "object", "required": ["scope", "kind", "targetFieldId"],
+      "properties": { "scope": { "enum": ["header", "line", "total"] }, "kind": { "enum": ["binary_op", "formula", "sum"] }, "targetFieldId": { "$ref": "#/$defs/NonBlankString" }, "inputFieldIds": { "type": "array", "items": { "type": "string" } }, "sourceFieldId": { "type": "string" }, "operator": { "enum": ["+", "-", "*", "/"] }, "expression": { "$ref": "#/$defs/CalculationExpression" }, "precision": { "type": "integer" } },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "binary_op" } } }, "then": { "required": ["operator", "inputFieldIds"], "properties": { "inputFieldIds": { "minItems": 2, "maxItems": 2 } } } },
+        { "if": { "properties": { "kind": { "const": "formula" } } }, "then": { "required": ["expression"] } },
+        { "if": { "properties": { "kind": { "const": "sum" } } }, "then": { "required": ["sourceFieldId"] } }
+      ]
+    },
+    "CalculationExpression": {
+      "type": "object", "required": ["kind"],
+      "properties": { "kind": { "enum": ["value", "field", "binary_op", "sum", "min", "max", "negate", "coalesce", "if"] }, "field": { "type": "string" }, "value": { "type": "number" }, "operator": { "enum": ["+", "-", "*", "/"] }, "args": { "type": "array", "items": { "$ref": "#/$defs/CalculationExpression" } }, "when": { "$ref": "#/$defs/CalculationCondition" }, "then": { "$ref": "#/$defs/CalculationExpression" }, "else": { "$ref": "#/$defs/CalculationExpression" } },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "value" } } }, "then": { "required": ["value"] } },
+        { "if": { "properties": { "kind": { "const": "field" } } }, "then": { "required": ["field"] } },
+        { "if": { "properties": { "kind": { "const": "binary_op" } } }, "then": { "required": ["operator", "args"], "properties": { "args": { "minItems": 2, "maxItems": 2 } } } },
+        { "if": { "properties": { "kind": { "enum": ["sum", "min", "max", "coalesce"] } } }, "then": { "required": ["args"], "properties": { "args": { "minItems": 1 } } } },
+        { "if": { "properties": { "kind": { "const": "negate" } } }, "then": { "required": ["args"], "properties": { "args": { "minItems": 1, "maxItems": 1 } } } },
+        { "if": { "properties": { "kind": { "const": "if" } } }, "then": { "required": ["when", "then", "else"] } }
+      ]
+    },
+    "CalculationCondition": { "type": "object", "required": ["field", "operator"], "properties": { "field": { "type": "string" }, "operator": { "enum": ["eq", "ne", "gt", "gte", "lt", "lte", "empty", "not_empty"] }, "value": {} }, "allOf": [{ "if": { "properties": { "operator": { "enum": ["eq", "ne", "gt", "gte", "lt", "lte"] } } }, "then": { "required": ["value"] } }] },
+    "TransactionDocument": { "type": "object", "required": ["documentId", "name", "scope"], "properties": { "documentId": { "type": "string" }, "name": { "type": "string" }, "scope": { "const": "line" }, "filename": { "type": "string" }, "title": { "type": "string" }, "fields": { "type": "array", "items": { "type": "object", "required": ["label", "source"], "properties": { "label": { "type": "string" }, "source": { "type": "string" }, "format": { "type": "string" } } } } } },
+    "TransactionPosting": { "type": "object", "required": ["trigger", "lines"], "properties": { "trigger": { "const": "confirm" }, "dateSource": { "type": "string" }, "entryNo": { "type": "string" }, "memo": { "type": "string" }, "lines": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/TransactionPostingLine" } } } },
+    "TransactionPostingLine": { "type": "object", "required": ["accountSource"], "properties": { "accountSource": { "$ref": "#/$defs/NonBlankString" }, "description": { "type": "string" }, "debit": { "$ref": "#/$defs/CalculationExpression" }, "credit": { "$ref": "#/$defs/CalculationExpression" } }, "anyOf": [{ "required": ["debit"] }, { "required": ["credit"] }] },
+
+    "ExpandPageDefinition": { "type": "object", "required": ["targetPageId", "pageActions", "rowActions"], "properties": { "targetPageId": { "$ref": "#/$defs/NonBlankString" }, "addFields": { "$ref": "#/$defs/Fields" }, "pageActions": { "$ref": "#/$defs/PageActionOverrides" }, "rowActions": { "$ref": "#/$defs/RowActionOverrides" } } },
+    "PageActionOverrides": { "type": "object", "properties": { "add": { "$ref": "#/$defs/PageActions" }, "override": { "$ref": "#/$defs/PageActions" } } },
+    "RowActionOverrides": { "type": "object", "properties": { "add": { "$ref": "#/$defs/RowActions" }, "override": { "$ref": "#/$defs/RowActions" } } },
+    "ConnectorDefinition": { "type": "object", "additionalProperties": false, "required": ["authMethods", "api"], "properties": { "authMethods": { "type": "array", "items": { "$ref": "#/$defs/ConnectorAuthMethod" } }, "api": { "$ref": "#/$defs/ConnectorAPI" } } },
+    "ConnectorAuthMethod": {
+      "type": "object", "additionalProperties": false, "required": ["authMethodId", "label", "type"],
+      "properties": { "authMethodId": { "$ref": "#/$defs/Identifier" }, "label": { "$ref": "#/$defs/NonBlankString" }, "type": { "enum": ["api_key", "client_keys", "oauth2_pkce", "hosted_token_exchange"] }, "credentialFields": { "type": "array", "items": { "$ref": "#/$defs/ConnectorCredentialField" } }, "injections": { "type": "array", "items": { "$ref": "#/$defs/ConnectorCredentialInjection" } }, "oauth2": { "$ref": "#/$defs/ConnectorOAuth2" }, "hostedAuthorization": { "$ref": "#/$defs/HostedAuthorization" } },
+      "allOf": [
+        { "if": { "properties": { "type": { "enum": ["api_key", "client_keys"] } } }, "then": { "required": ["credentialFields", "injections"], "properties": { "credentialFields": { "minItems": 1 } } } },
+        { "if": { "properties": { "type": { "const": "oauth2_pkce" } } }, "then": { "required": ["oauth2"] } },
+        { "if": { "properties": { "type": { "const": "hosted_token_exchange" } } }, "then": { "required": ["credentialFields", "hostedAuthorization"], "properties": { "credentialFields": { "minItems": 1 } } } }
+      ]
+    },
+    "ConnectorCredentialField": { "type": "object", "required": ["key", "label", "kind", "required"], "properties": { "key": { "$ref": "#/$defs/Identifier" }, "label": { "$ref": "#/$defs/NonBlankString" }, "kind": { "enum": ["api_key", "client_id", "client_secret"] }, "required": { "type": "boolean" } } },
+    "ConnectorCredentialInjection": { "type": "object", "required": ["credentialKey", "in"], "properties": { "credentialKey": { "$ref": "#/$defs/Identifier" }, "in": { "enum": ["header", "json_body"] }, "name": { "type": "string" }, "path": { "type": "string" }, "prefix": { "type": "string", "maxLength": 64 } }, "allOf": [{ "if": { "properties": { "in": { "const": "header" } } }, "then": { "required": ["name"] } }, { "if": { "properties": { "in": { "const": "json_body" } } }, "then": { "required": ["path"] } }] },
+    "ConnectorOAuth2": { "type": "object", "required": ["authorizationUrl", "tokenUrl"], "properties": { "authorizationUrl": { "type": "string", "format": "uri", "pattern": "^https://" }, "tokenUrl": { "type": "string", "format": "uri", "pattern": "^https://" }, "revocationUrl": { "type": "string", "format": "uri", "pattern": "^https://" }, "clientId": { "type": "string" }, "clientIdCredentialKey": { "type": "string" }, "clientSecretCredentialKey": { "type": "string" }, "tokenAuthMethod": { "enum": ["none", "client_secret_basic", "client_secret_post"] }, "scopes": { "type": "array", "items": { "type": "string" } } } },
+    "HostedAuthorization": { "type": "object", "required": ["startOperationId", "launchUrlPath", "allowedLaunchOrigins", "statusOperationId", "completionOutputs", "exchangeOperationId", "credentialOutputs"], "properties": { "startOperationId": { "$ref": "#/$defs/Identifier" }, "launchUrlPath": { "type": "string" }, "allowedLaunchOrigins": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "type": "string", "format": "uri", "pattern": "^https://" } }, "sessionOutputs": { "$ref": "#/$defs/StringMap" }, "statusOperationId": { "$ref": "#/$defs/Identifier" }, "completionOutputs": { "$ref": "#/$defs/NonEmptyStringMap" }, "exchangeOperationId": { "$ref": "#/$defs/Identifier" }, "credentialOutputs": { "$ref": "#/$defs/NonEmptyStringMap" }, "sessionTtlSeconds": { "type": "integer", "minimum": 60, "maximum": 1800 } } },
+    "NonEmptyStringMap": { "allOf": [{ "$ref": "#/$defs/StringMap" }, { "minProperties": 1 }] },
+    "ConnectorAPI": { "type": "object", "required": ["baseUrl", "executionPolicy", "operations"], "properties": { "baseUrl": { "type": "string", "format": "uri", "pattern": "^https://" }, "executionPolicy": { "$ref": "#/$defs/ConnectorExecutionPolicy" }, "operations": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/ConnectorOperation" } } } },
+    "ConnectorOperation": { "type": "object", "required": ["operationId", "label", "method", "path"], "properties": { "operationId": { "$ref": "#/$defs/Identifier" }, "label": { "$ref": "#/$defs/NonBlankString" }, "method": { "$ref": "#/$defs/HTTPMethod" }, "path": { "$ref": "#/$defs/NonBlankString" }, "query": { "$ref": "#/$defs/JSONMap" }, "body": {}, "semantics": { "enum": ["read", "write"] }, "retrySafe": { "type": "boolean" }, "executionPolicy": { "$ref": "#/$defs/ConnectorExecutionPolicy" }, "connectionDiscovery": { "$ref": "#/$defs/ConnectorSafeOutput" }, "variables": { "type": "array", "items": { "$ref": "#/$defs/ConnectorVariable" } }, "pagination": { "$ref": "#/$defs/ConnectorPagination" }, "authMethodIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/Identifier" } } } },
+    "ConnectorExecutionPolicy": { "type": "object", "required": ["attemptTimeoutMs", "totalTimeoutMs", "retry"], "properties": { "attemptTimeoutMs": { "type": "integer", "minimum": 100, "maximum": 60000 }, "totalTimeoutMs": { "type": "integer", "maximum": 120000 }, "retry": { "$ref": "#/$defs/ConnectorRetryPolicy" } }, "description": "totalTimeoutMs must also be at least attemptTimeoutMs; the backend checks this cross-field rule." },
+    "ConnectorRetryPolicy": { "type": "object", "required": ["maxAttempts", "initialBackoffMs", "maxBackoffMs"], "properties": { "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 3 }, "initialBackoffMs": { "type": "integer", "minimum": 0, "maximum": 10000 }, "maxBackoffMs": { "type": "integer", "minimum": 0, "maximum": 10000 }, "retryOn": { "type": "array", "uniqueItems": true, "items": { "enum": ["connection_error", "timeout", "408", "429", "500", "502", "503", "504"] } } }, "allOf": [{ "if": { "properties": { "maxAttempts": { "minimum": 2 } } }, "then": { "required": ["retryOn"], "properties": { "retryOn": { "minItems": 1 } } } }] },
+    "ConnectorVariable": { "type": "object", "required": ["source", "key", "in"], "properties": { "source": { "enum": ["credential", "authorization_session", "authorization_output", "context", "configuration"] }, "key": { "type": "string" }, "in": { "enum": ["header", "query", "json_body"] }, "name": { "type": "string" }, "path": { "type": "string" }, "prefix": { "type": "string", "maxLength": 64 }, "omitWhenEmpty": { "type": "boolean" } }, "allOf": [{ "if": { "properties": { "in": { "enum": ["header", "query"] } } }, "then": { "required": ["name"] } }, { "if": { "properties": { "in": { "const": "json_body" } } }, "then": { "required": ["path"] } }] },
+    "ConnectorPagination": { "type": "object", "required": ["requestIn", "requestPath", "nextCursorPath", "hasMorePath", "stateResource", "scope", "maxPages", "maxItems"], "properties": { "requestIn": { "enum": ["query", "json_body"] }, "requestName": { "type": "string" }, "requestPath": { "type": "string" }, "omitWhenEmpty": { "type": "boolean" }, "nextCursorPath": { "$ref": "#/$defs/NonBlankString" }, "hasMorePath": { "$ref": "#/$defs/NonBlankString" }, "stateResource": { "$ref": "#/$defs/ConnectorResourceRef" }, "scope": { "enum": ["connection", "binding"] }, "maxPages": { "type": "integer", "minimum": 1, "maximum": 100 }, "maxItems": { "type": "integer", "minimum": 1, "maximum": 100000 } }, "allOf": [{ "if": { "properties": { "requestIn": { "const": "query" } } }, "then": { "required": ["requestName"] } }, { "if": { "properties": { "requestIn": { "const": "json_body" } } }, "then": { "required": ["requestPath"] } }] },
+    "ConnectorResourceRef": { "type": "object", "required": ["extensionId", "resourceId"], "properties": { "extensionId": { "$ref": "#/$defs/Identifier" }, "resourceId": { "$ref": "#/$defs/Identifier" } } },
+    "ConnectorSafeOutput": { "type": "object", "required": ["accountsPath", "fields"], "properties": { "accountsPath": { "$ref": "#/$defs/NonBlankString" }, "fields": { "type": "object", "required": ["externalAccountId", "displayName"], "properties": { "externalAccountId": { "$ref": "#/$defs/NonBlankString" }, "displayName": { "$ref": "#/$defs/NonBlankString" }, "institutionName": { "type": "string" }, "mask": { "type": "string" }, "type": { "type": "string" }, "subtype": { "type": "string" }, "currencyCode": { "type": "string" } } } } },
+
+    "ActionsDefinition": { "type": "object", "additionalProperties": false, "required": ["actions"], "properties": { "actions": { "type": "array", "minItems": 1, "maxItems": 32, "items": { "$ref": "#/$defs/ActionDefinition" } } } },
+    "ActionDefinition": { "type": "object", "additionalProperties": false, "required": ["actionId", "label", "trigger", "steps"], "properties": { "actionId": { "$ref": "#/$defs/Identifier" }, "label": { "$ref": "#/$defs/NonBlankString" }, "trigger": { "const": "manual" }, "binding": { "$ref": "#/$defs/ActionBinding" }, "inputs": { "type": "array", "items": { "$ref": "#/$defs/ActionInput" } }, "steps": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "$ref": "#/$defs/ActionStep" } } } },
+    "ActionBinding": { "type": "object", "additionalProperties": false, "required": ["sourceCollection", "targetType"], "properties": { "sourceCollection": { "enum": ["accounts", "customers", "items", "vendors"] }, "targetType": { "enum": ["accounts", "customers", "items", "vendors"] } } },
+    "ActionInput": { "type": "object", "additionalProperties": false, "required": ["inputId", "label", "type"], "properties": { "inputId": { "$ref": "#/$defs/Identifier" }, "label": { "$ref": "#/$defs/NonBlankString" }, "description": { "type": "string" }, "type": { "enum": ["text", "number", "boolean", "date", "select"] }, "required": { "type": "boolean" }, "options": { "type": "array", "items": { "$ref": "#/$defs/LabeledValue" } }, "defaultValue": {} }, "allOf": [{ "if": { "properties": { "type": { "const": "select" } } }, "then": { "required": ["options"], "properties": { "options": { "minItems": 1 } } } }] },
+    "ActionStep": {
+      "oneOf": [
+        { "$ref": "#/$defs/ActionDataStep" }, { "$ref": "#/$defs/ActionAPIStep" }, { "$ref": "#/$defs/ActionReviewStep" }, { "$ref": "#/$defs/ActionDeltaStep" }
+      ]
+    },
+    "ActionDataStep": { "type": "object", "additionalProperties": false, "required": ["id", "command", "with"], "properties": { "id": { "$ref": "#/$defs/Identifier" }, "command": { "enum": ["data.list", "data.get", "data.resolve"] }, "with": { "type": "object", "additionalProperties": false, "required": ["entity"], "properties": { "entity": { "enum": ["accounts", "customers", "items", "vendors"] }, "id": { "type": "string" }, "ids": { "type": "string" }, "limit": { "type": "integer" } } } } },
+    "ActionAPIStep": { "type": "object", "additionalProperties": false, "required": ["id", "command", "with"], "properties": { "id": { "$ref": "#/$defs/Identifier" }, "command": { "const": "api.execute" }, "with": { "$ref": "#/$defs/ActionAPIExecute" } } },
+    "ActionAPIExecute": { "type": "object", "additionalProperties": false, "required": ["connector", "connectionId", "safeOutputs"], "properties": { "connector": { "type": "object", "additionalProperties": false, "required": ["extensionId", "resourceId", "operationId"], "properties": { "extensionId": { "$ref": "#/$defs/Identifier" }, "resourceId": { "$ref": "#/$defs/Identifier" }, "operationId": { "$ref": "#/$defs/Identifier" } } }, "connectionId": { "const": "$context.connectionId" }, "requestBindings": { "type": "array", "items": { "$ref": "#/$defs/ActionRequestBinding" } }, "safeOutputs": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/ActionSafeOutput" } } } },
+    "ActionRequestBinding": { "type": "object", "additionalProperties": false, "required": ["source", "in"], "properties": { "source": { "type": "string", "pattern": "^\\$(context|inputs|configuration|steps)\\.[a-zA-Z0-9_.-]+$" }, "in": { "enum": ["query", "json_body"] }, "name": { "type": "string" }, "path": { "type": "string" } }, "allOf": [{ "if": { "properties": { "in": { "const": "query" } } }, "then": { "required": ["name"] } }, { "if": { "properties": { "in": { "const": "json_body" } } }, "then": { "required": ["path"] } }] },
+    "ActionSafeOutput": { "type": "object", "additionalProperties": false, "required": ["collection", "itemsPath", "maxItems", "fields"], "properties": { "collection": { "$ref": "#/$defs/Identifier" }, "itemsPath": { "$ref": "#/$defs/NonBlankString" }, "maxItems": { "type": "integer", "minimum": 1, "maximum": 10000 }, "fields": { "type": "object", "minProperties": 1, "propertyNames": { "$ref": "#/$defs/Identifier" }, "additionalProperties": { "type": "object", "additionalProperties": false, "required": ["path", "type"], "properties": { "path": { "$ref": "#/$defs/NonBlankString" }, "type": { "$ref": "#/$defs/DataType" }, "required": { "type": "boolean" } } } } } },
+    "ActionReviewStep": { "type": "object", "additionalProperties": false, "required": ["id", "command", "with"], "properties": { "id": { "$ref": "#/$defs/Identifier" }, "command": { "const": "review.import" }, "with": { "oneOf": [{ "$ref": "#/$defs/BankReviewImport" }, { "$ref": "#/$defs/AccountReviewImport" }, { "$ref": "#/$defs/CustomerReviewImport" }, { "$ref": "#/$defs/VendorReviewImport" }, { "$ref": "#/$defs/ItemReviewImport" }] } } },
+    "BankReviewImport": { "type": "object", "additionalProperties": false, "required": ["targetEntity", "target", "source", "fields"], "properties": { "targetEntity": { "const": "bank_register" }, "target": { "type": "object", "additionalProperties": false, "required": ["accountId"], "properties": { "accountId": { "const": "$context.targetId" } } }, "source": { "type": "string" }, "fields": { "type": "object", "required": ["sourceTransactionId", "date", "amount"], "propertyNames": { "enum": ["sourceTransactionId", "date", "amount", "description", "memo", "checkNo", "currency", "vendorId", "vendorName", "customerId", "customerName"] }, "additionalProperties": { "type": "string" } }, "transforms": { "type": "object", "additionalProperties": false, "properties": { "amount": { "type": "object", "additionalProperties": false, "required": ["multiply"], "properties": { "multiply": { "type": "number" } } } } } } },
+    "AccountReviewImport": { "type": "object", "additionalProperties": false, "required": ["targetEntity", "target", "source", "fields"], "properties": { "targetEntity": { "const": "accounts" }, "target": { "type": "object", "maxProperties": 0 }, "source": { "type": "string" }, "fields": { "type": "object", "required": ["name", "type"], "propertyNames": { "enum": ["name", "type", "code", "subtype", "description", "nonPosting", "controlAccount", "reconcileAccount", "isActive", "parentId", "parentAccountName"] }, "additionalProperties": { "type": "string" } } } },
+    "CustomerReviewImport": { "type": "object", "additionalProperties": false, "required": ["targetEntity", "target", "source", "fields"], "properties": { "targetEntity": { "const": "customers" }, "target": { "type": "object", "maxProperties": 0 }, "source": { "type": "string" }, "fields": { "type": "object", "required": ["name"], "propertyNames": { "enum": ["name", "company", "email", "phone", "isActive", "defaultIncomeAccountId", "address1", "address2", "city", "state", "postalCode", "country"] }, "additionalProperties": { "type": "string" } } } },
+    "VendorReviewImport": { "type": "object", "additionalProperties": false, "required": ["targetEntity", "target", "source", "fields"], "properties": { "targetEntity": { "const": "vendors" }, "target": { "type": "object", "maxProperties": 0 }, "source": { "type": "string" }, "fields": { "type": "object", "required": ["name"], "propertyNames": { "enum": ["name", "company", "email", "phone", "is1099", "isActive", "defaultExpenseAccountId", "address1", "address2", "city", "state", "postalCode", "country"] }, "additionalProperties": { "type": "string" } } } },
+    "ItemReviewImport": { "type": "object", "additionalProperties": false, "required": ["targetEntity", "target", "source", "fields"], "properties": { "targetEntity": { "const": "items" }, "target": { "type": "object", "maxProperties": 0 }, "source": { "type": "string" }, "fields": { "type": "object", "required": ["description"], "propertyNames": { "enum": ["description", "itemType", "sku", "unitPrice", "buyPrice", "incomeAccountId", "expenseAccountId", "unitOfMeasure", "isActive"] }, "additionalProperties": { "type": "string" } } } },
+    "ActionDeltaStep": { "type": "object", "additionalProperties": false, "required": ["id", "command", "with"], "properties": { "id": { "$ref": "#/$defs/Identifier" }, "command": { "const": "resource.apply_delta" }, "with": { "type": "object", "additionalProperties": false, "required": ["resource", "identityField", "removedMode"], "properties": { "resource": { "$ref": "#/$defs/ConnectorResourceRef" }, "identityField": { "$ref": "#/$defs/Identifier" }, "addedSource": { "type": "string" }, "modifiedSource": { "type": "string" }, "removedSource": { "type": "string" }, "removedMode": { "enum": ["delete", "mark"] }, "removedFlagField": { "type": "string" } }, "anyOf": [{ "required": ["addedSource"] }, { "required": ["modifiedSource"] }, { "required": ["removedSource"] }], "allOf": [{ "if": { "properties": { "removedMode": { "const": "mark" } } }, "then": { "required": ["removedFlagField"] } }] } } },
+
+    "PluginConfigurationDefinition": { "type": "object", "additionalProperties": false, "required": ["title", "sections"], "properties": { "title": { "$ref": "#/$defs/NonBlankString", "maxLength": 160 }, "description": { "type": "string", "maxLength": 4000 }, "sections": { "type": "array", "minItems": 1, "maxItems": 32, "items": { "$ref": "#/$defs/ConfigurationSection" } } } },
+    "ConfigurationSection": { "oneOf": [{ "$ref": "#/$defs/ConfigurationFieldsSection" }, { "$ref": "#/$defs/ConfigurationConnectionSection" }, { "$ref": "#/$defs/ConfigurationBindingsSection" }] },
+    "ConfigurationSectionBase": { "type": "object", "required": ["sectionId", "kind", "title"], "properties": { "sectionId": { "$ref": "#/$defs/Identifier" }, "kind": { "enum": ["fields", "connection", "bindings"] }, "title": { "$ref": "#/$defs/NonBlankString", "maxLength": 160 }, "description": { "type": "string", "maxLength": 4000 } } },
+    "ConfigurationFieldsSection": { "allOf": [{ "$ref": "#/$defs/ConfigurationSectionBase" }, { "type": "object", "required": ["fields"], "properties": { "kind": { "const": "fields" }, "fields": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/ConfigurationField" } } } }] },
+    "ConfigurationField": { "type": "object", "required": ["fieldId", "label", "type", "required"], "properties": { "fieldId": { "$ref": "#/$defs/Identifier" }, "label": { "$ref": "#/$defs/NonBlankString", "maxLength": 160 }, "type": { "enum": ["text", "textarea", "number", "boolean", "select"] }, "required": { "type": "boolean" }, "description": { "type": "string", "maxLength": 2000 }, "defaultValue": {}, "options": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/ConfigurationOption" } } }, "allOf": [{ "if": { "properties": { "type": { "const": "select" } } }, "then": { "required": ["options"], "properties": { "options": { "minItems": 1 } } } }] },
+    "ConfigurationOption": { "type": "object", "required": ["value", "label"], "properties": { "value": { "type": "string", "minLength": 1, "maxLength": 256 }, "label": { "$ref": "#/$defs/NonBlankString", "maxLength": 160 } } },
+    "ConfigurationConnectionSection": { "allOf": [{ "$ref": "#/$defs/ConfigurationSectionBase" }, { "type": "object", "required": ["connection"], "properties": { "kind": { "const": "connection" }, "connection": { "type": "object", "required": ["connector", "required", "actions"], "properties": { "connector": { "$ref": "#/$defs/ConnectorResourceRef" }, "required": { "type": "boolean" }, "allowMultiple": { "type": "boolean" }, "actions": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "$ref": "#/$defs/ConfigurationConnectionAction" } } } } } }] },
+    "ConfigurationConnectionAction": { "oneOf": [{ "type": "object", "required": ["actionId", "kind", "label", "authMethodId"], "properties": { "actionId": { "$ref": "#/$defs/Identifier" }, "kind": { "enum": ["configure_credentials", "authorize_oauth2", "authorize_hosted"] }, "label": { "$ref": "#/$defs/NonBlankString", "maxLength": 160 }, "authMethodId": { "$ref": "#/$defs/Identifier" } } }, { "type": "object", "required": ["actionId", "kind", "label", "operationId"], "properties": { "actionId": { "$ref": "#/$defs/Identifier" }, "kind": { "const": "discover_connection" }, "label": { "$ref": "#/$defs/NonBlankString", "maxLength": 160 }, "operationId": { "$ref": "#/$defs/Identifier" } } }] },
+    "ConfigurationBindingsSection": { "allOf": [{ "$ref": "#/$defs/ConfigurationSectionBase" }, { "type": "object", "required": ["bindings"], "properties": { "kind": { "const": "bindings" }, "bindings": { "type": "object", "required": ["connectionSectionId", "sourceCollection", "targetType"], "properties": { "connectionSectionId": { "$ref": "#/$defs/Identifier" }, "sourceCollection": { "enum": ["accounts", "customers", "items", "vendors"] }, "targetType": { "enum": ["accounts", "customers", "items", "vendors"] }, "required": { "type": "boolean" }, "sourceLabel": { "type": "string", "maxLength": 160 }, "targetLabel": { "type": "string", "maxLength": 160 } } } } }] },
+
+    "ExistingPageActionsDefinition": { "type": "object", "additionalProperties": false, "required": ["targetPageKey", "actions"], "properties": { "targetPageKey": { "$ref": "#/$defs/NonBlankString" }, "actions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/ExistingPageAction" } } } },
+    "ExistingPageAction": { "$ref": "#/$defs/ExistingRunAction" },
+    "ExistingActionBase": { "type": "object", "required": ["actionId", "label", "kind"], "properties": { "actionId": { "$ref": "#/$defs/NonBlankString" }, "label": { "$ref": "#/$defs/NonBlankString" }, "kind": { "const": "run_action" }, "result": { "type": "object", "properties": { "display": { "const": "modal" }, "title": { "type": "string" } } } } },
+    "ExistingRunAction": { "allOf": [{ "$ref": "#/$defs/ExistingActionBase" }, { "type": "object", "required": ["action"], "properties": { "kind": { "const": "run_action" }, "action": { "type": "object", "required": ["extensionId", "actionId"], "properties": { "extensionId": { "$ref": "#/$defs/Identifier" }, "actionId": { "$ref": "#/$defs/Identifier" }, "inputs": { "type": "array", "items": { "$ref": "#/$defs/ActionInput" } }, "requiresCandidate": { "type": "boolean" } } } } }] },
+
+    "AccountingScheduleDefinition": { "type": "object", "required": ["schedule", "calculation", "posting"], "properties": { "schedule": { "$ref": "#/$defs/AccountingScheduleConfig" }, "templates": { "type": "array", "items": { "$ref": "#/$defs/AccountingTemplate" } }, "fields": { "$ref": "#/$defs/Fields" }, "relationRoles": { "type": "array", "items": { "$ref": "#/$defs/RelationRole" } }, "accountRoles": { "type": "array", "items": { "$ref": "#/$defs/AccountRole" } }, "calculation": { "$ref": "#/$defs/AccountingCalculation" }, "posting": { "$ref": "#/$defs/AccountingPosting" } } },
+    "AccountingScheduleConfig": { "type": "object", "required": ["scheduleId", "title"], "properties": { "scheduleId": { "$ref": "#/$defs/NonBlankString" }, "title": { "$ref": "#/$defs/NonBlankString" }, "description": { "type": "string" }, "icon": { "type": "string" }, "category": { "type": "string" }, "route": { "type": "string" } } },
+    "AccountingTemplate": { "type": "object", "required": ["templateId", "name"], "properties": { "templateId": { "$ref": "#/$defs/NonBlankString" }, "name": { "$ref": "#/$defs/NonBlankString" }, "description": { "type": "string" }, "calculationMethod": { "type": "string" }, "postingFrequency": { "type": "string" }, "roundingPolicy": { "type": "string" }, "accountMappings": { "$ref": "#/$defs/StringMap" }, "dimensionMappings": { "$ref": "#/$defs/StringMap" }, "headerDefaults": {}, "requireApproval": { "type": "boolean" } } },
+    "RelationRole": { "type": "object", "required": ["roleId", "label", "targetEntityType"], "properties": { "roleId": { "$ref": "#/$defs/NonBlankString" }, "label": { "$ref": "#/$defs/NonBlankString" }, "targetEntityType": { "$ref": "#/$defs/NonBlankString" }, "cardinality": { "enum": ["one", "many"] }, "required": { "type": "boolean" }, "displayPolicy": { "type": "string" }, "allowedSourcePageIds": { "type": "array", "items": { "type": "string" } } } },
+    "AccountRole": { "type": "object", "required": ["roleId", "label"], "properties": { "roleId": { "$ref": "#/$defs/NonBlankString" }, "label": { "$ref": "#/$defs/NonBlankString" }, "required": { "type": "boolean" }, "accountTypes": { "type": "array", "items": { "type": "string" } } } },
+    "AccountingCalculation": { "type": "object", "required": ["defaultMethod", "amountSource", "startDateSource"], "properties": { "methods": { "type": "array", "items": { "type": "string" } }, "defaultMethod": { "$ref": "#/$defs/NonBlankString" }, "amountSource": { "$ref": "#/$defs/NonBlankString" }, "startDateSource": { "$ref": "#/$defs/NonBlankString" }, "endDateSource": { "type": "string" }, "usefulLifeMonthsSource": { "type": "string" }, "usefulLifeYearsSource": { "type": "string" }, "salvageValueSource": { "type": "string" }, "frequency": { "type": "string" }, "roundingPolicy": { "type": "string" } }, "anyOf": [{ "required": ["endDateSource"] }, { "required": ["usefulLifeMonthsSource"] }, { "required": ["usefulLifeYearsSource"] }] },
+    "AccountingPosting": { "type": "object", "required": ["lines"], "properties": { "mode": { "type": "string" }, "dateSource": { "type": "string" }, "entryNoPattern": { "type": "string" }, "memoPattern": { "type": "string" }, "idempotencyKeyPattern": { "type": "string" }, "lines": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/AccountingPostingLine" } } } },
+    "AccountingPostingLine": { "type": "object", "required": ["accountRoleId"], "properties": { "accountRoleId": { "$ref": "#/$defs/NonBlankString" }, "description": { "type": "string" }, "debit": { "type": "string" }, "credit": { "type": "string" } }, "anyOf": [{ "required": ["debit"] }, { "required": ["credit"] }] },
+
+    "ReportDefinition": { "$ref": "#/$defs/LegacyReportDefinition" },
+    "LegacyReportDefinition": { "type": "object", "required": ["report", "data", "views"], "properties": { "definitionVersion": { "const": "2" }, "report": { "$ref": "#/$defs/ReportConfig" }, "data": { "$ref": "#/$defs/ReportData" }, "views": { "type": "array", "minItems": 1, "contains": { "properties": { "kind": { "const": "table" } } }, "items": { "$ref": "#/$defs/ReportView" } }, "customization": { "$ref": "#/$defs/ReportCustomization" } } },
+    "ReportConfig": { "type": "object", "required": ["reportId", "title"], "properties": { "reportId": { "$ref": "#/$defs/NonBlankString" }, "title": { "$ref": "#/$defs/NonBlankString" }, "category": { "type": "string" }, "description": { "type": "string" }, "icon": { "type": "string" } } },
+    "ReportData": { "type": "object", "required": ["source", "basis"], "properties": { "source": { "$ref": "#/$defs/NonBlankString" }, "grain": { "type": "string" }, "basis": { "$ref": "#/$defs/ReportBasis" }, "requiredFilters": { "type": "array", "items": { "$ref": "#/$defs/RequiredReportFilter" } }, "exposedFilters": { "type": "array", "items": { "$ref": "#/$defs/ExposedReportFilter" } }, "allowedGroupBy": { "type": "array", "items": { "type": "string" } }, "measures": { "type": "array", "items": { "$ref": "#/$defs/ReportMeasure" } }, "defaultSort": { "type": "array", "items": { "$ref": "#/$defs/ReportSort" } } } },
+    "ReportBasis": { "type": "object", "required": ["kind"], "properties": { "kind": { "enum": ["ledger_posted_accrual", "ledger_cash_basis", "source_document", "bank_evidence", "plugin_resource", "forecast", "reconciliation"] }, "dateField": { "type": "string" }, "amountMode": { "enum": ["base_currency", "transaction_currency", "reporting_currency", "none"] }, "postingState": { "enum": ["all", "draft", "issued_or_posted", "posted", "open", "paid", "non_posting"] } } },
+    "ReportFilterBase": { "type": "object", "required": ["field"], "properties": { "field": { "$ref": "#/$defs/NonBlankString" }, "label": { "type": "string" }, "op": { "$ref": "#/$defs/ReportFilterOperator" }, "value": {}, "ops": { "type": "array", "items": { "$ref": "#/$defs/ReportFilterOperator" } }, "default": {} } },
+    "RequiredReportFilter": { "allOf": [{ "$ref": "#/$defs/ReportFilterBase" }, { "required": ["op"] }] },
+    "ExposedReportFilter": { "allOf": [{ "$ref": "#/$defs/ReportFilterBase" }, { "required": ["ops"], "properties": { "ops": { "minItems": 1 } } }] },
+    "ReportFilterOperator": { "enum": ["eq", "ne", "in", "not_in", "contains", "gt", "gte", "lt", "lte", "between", "is_empty", "is_not_empty"] },
+    "ReportMeasure": { "type": "object", "required": ["measureId", "field", "function"], "properties": { "measureId": { "$ref": "#/$defs/NonBlankString" }, "field": { "$ref": "#/$defs/NonBlankString" }, "function": { "enum": ["sum", "count", "count_distinct", "avg", "min", "max"] }, "label": { "type": "string" } } },
+    "ReportSort": { "type": "object", "required": ["field"], "properties": { "field": { "$ref": "#/$defs/NonBlankString" }, "direction": { "enum": ["asc", "desc"] } } },
+    "ReportView": { "type": "object", "required": ["viewId", "kind"], "properties": { "viewId": { "$ref": "#/$defs/NonBlankString" }, "kind": { "enum": ["table", "pivot", "chart"] }, "label": { "type": "string" }, "columns": { "type": "array", "items": { "type": "string" } }, "groupBy": { "type": "array", "items": { "type": "string" } }, "rows": { "type": "array", "items": { "type": "string" } }, "values": { "type": "array", "items": { "type": "string" } } }, "allOf": [{ "if": { "properties": { "kind": { "const": "pivot" } } }, "then": { "required": ["rows", "columns", "values"], "properties": { "rows": { "minItems": 1 }, "columns": { "minItems": 1 }, "values": { "minItems": 1 } } } }] },
+    "ReportCustomization": { "type": "object", "properties": { "allowUserFilters": { "type": "boolean" }, "allowUserGroupBy": { "type": "boolean" }, "allowSavedViews": { "type": "boolean" }, "maxGroupLevels": { "type": "integer", "minimum": 0 } } }
+  }
+}

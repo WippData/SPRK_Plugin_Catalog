@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "report-grouped",
+  "name": "Customer Sales Report Example",
+  "version": "1.0.0",
+  "publisher": { "id": "sprk", "name": "SPRK" },
+  "description": "A grouped report with server-calculated totals.",
+  "runtime": { "minAppVersion": "1.0.0" },
+  "capabilities": {
+    "reports.query": { "required": true, "sources": [{ "sourceId": "invoice.lines", "sourceVersion": "1" }] },
+    "surfaces.contribute": { "required": true, "surfaces": ["reports.catalog.entries"] }
+  },
+  "extensionManifests": [{ "extensionId": "customer-sales", "path": "extensions/customer-sales.json" }]
+}

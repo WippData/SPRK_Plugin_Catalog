@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "2", "extensionId": "invoice-detail", "type": "report", "name": "Invoice detail", "version": "1.0.0",
+  "targets": { "companyScoped": true },
+  "definition": {
+    "definitionVersion": "2",
+    "report": { "reportId": "invoice-detail", "title": "Invoice Detail", "category": "Sales", "description": "Invoice lines for a selected period." },
+    "data": {
+      "source": "invoice.lines", "grain": "invoice_line",
+      "basis": { "kind": "source_document", "dateField": "invoice.date", "amountMode": "base_currency", "postingState": "issued_or_posted" },
+      "exposedFilters": [{ "field": "invoice.date", "label": "Invoice date", "ops": ["between", "gte", "lte"] }, { "field": "customer.name", "label": "Customer", "ops": ["eq", "contains"] }],
+      "defaultSort": [{ "field": "invoice.date", "direction": "desc" }, { "field": "invoice.number", "direction": "asc" }]
+    },
+    "views": [{ "viewId": "detail", "kind": "table", "label": "Detail", "columns": ["invoice.number", "invoice.date", "customer.name", "line.sku", "line.quantity", "line.amount"] }],
+    "customization": { "allowUserFilters": true, "allowUserGroupBy": false, "allowSavedViews": true, "maxGroupLevels": 0 }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "report-detail",
+  "name": "Invoice Detail Report Example",
+  "version": "1.0.0",
+  "publisher": { "id": "sprk", "name": "SPRK" },
+  "description": "A table-only detail report over invoice lines.",
+  "runtime": { "minAppVersion": "1.0.0" },
+  "capabilities": {
+    "reports.query": { "required": true, "sources": [{ "sourceId": "invoice.lines", "sourceVersion": "1" }] },
+    "surfaces.contribute": { "required": true, "surfaces": ["reports.catalog.entries"] }
+  },
+  "extensionManifests": [{ "extensionId": "invoice-detail", "path": "extensions/invoice-detail.json" }]
+}

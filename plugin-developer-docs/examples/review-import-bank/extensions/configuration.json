@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "provider-configuration",
+  "type": "plugin_configuration",
+  "name": "Example Bank Provider Configuration",
+  "version": "1.0.0",
+  "targets": {
+    "companyScoped": true
+  },
+  "permissions": {
+    "network": false,
+    "secrets": false
+  },
+  "resources": [
+    {
+      "resourceId": "provider-settings",
+      "kind": "configuration",
+      "schemaVersion": 1,
+      "scope": "company"
+    }
+  ],
+  "definition": {
+    "title": "Example Bank Provider",
+    "sections": [
+      {
+        "sectionId": "provider-connection",
+        "kind": "connection",
+        "title": "Provider connection",
+        "connection": {
+          "connector": {
+            "extensionId": "provider-connector",
+            "resourceId": "provider-connection"
+          },
+          "required": true,
+          "allowMultiple": false,
+          "actions": [
+            {
+              "actionId": "configure-token",
+              "kind": "configure_credentials",
+              "label": "Enter provider token",
+              "authMethodId": "provider-token"
+            },
+            {
+              "actionId": "discover-accounts",
+              "kind": "discover_connection",
+              "label": "Discover accounts",
+              "operationId": "discover-accounts"
+            }
+          ]
+        }
+      },
+      {
+        "sectionId": "account-bindings",
+        "kind": "bindings",
+        "title": "Account bindings",
+        "bindings": {
+          "connectionSectionId": "provider-connection",
+          "sourceCollection": "accounts",
+          "targetType": "accounts",
+          "required": true,
+          "sourceLabel": "Provider account",
+          "targetLabel": "SPRK account"
+        }
+      }
+    ]
+  }
+}
