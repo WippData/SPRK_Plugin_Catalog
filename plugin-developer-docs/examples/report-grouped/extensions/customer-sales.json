@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "2", "extensionId": "customer-sales", "type": "report", "name": "Customer sales", "version": "1.0.0",
+  "targets": { "companyScoped": true },
+  "definition": {
+    "definitionVersion": "2",
+    "report": { "reportId": "customer-sales", "title": "Sales by Customer", "category": "Sales", "description": "Invoice-line sales grouped by customer." },
+    "data": {
+      "source": "invoice.lines", "grain": "invoice_line",
+      "basis": { "kind": "source_document", "dateField": "invoice.date", "amountMode": "base_currency", "postingState": "issued_or_posted" },
+      "exposedFilters": [{ "field": "invoice.date", "label": "Invoice date", "ops": ["between", "gte", "lte"] }, { "field": "customer.name", "label": "Customer", "ops": ["eq", "contains", "in"] }],
+      "allowedGroupBy": ["customer.name", "date.month"],
+      "measures": [{ "measureId": "sales_total", "label": "Sales", "field": "line.amount", "function": "sum" }, { "measureId": "line_count", "label": "Lines", "field": "row.count", "function": "count" }],
+      "defaultSort": [{ "field": "customer.name", "direction": "asc" }]
+    },
+    "views": [{ "viewId": "by-customer", "kind": "table", "label": "By customer", "columns": ["customer.name", "sales_total", "line_count"], "groupBy": ["customer.name"] }],
+    "customization": { "allowUserFilters": true, "allowUserGroupBy": true, "allowSavedViews": true, "maxGroupLevels": 2 }
+  }
+}

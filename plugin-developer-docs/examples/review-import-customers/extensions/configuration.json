@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "customer-configuration",
+  "type": "plugin_configuration",
+  "name": "Example Customer Provider Configuration",
+  "version": "1.0.0",
+  "targets": {
+    "companyScoped": true
+  },
+  "permissions": {
+    "network": false,
+    "secrets": false
+  },
+  "resources": [
+    {
+      "resourceId": "customer-settings",
+      "kind": "configuration",
+      "schemaVersion": 1,
+      "scope": "company"
+    }
+  ],
+  "definition": {
+    "title": "Example Customer Provider",
+    "sections": [
+      {
+        "sectionId": "customer-connection",
+        "kind": "connection",
+        "title": "Provider connection",
+        "connection": {
+          "connector": {
+            "extensionId": "customer-connector",
+            "resourceId": "customer-connection"
+          },
+          "required": true,
+          "allowMultiple": true,
+          "actions": [
+            {
+              "actionId": "configure-token",
+              "kind": "configure_credentials",
+              "label": "Enter provider token",
+              "authMethodId": "provider-token"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

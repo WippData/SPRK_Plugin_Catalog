@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "month-end-bank-cleanup",
+  "name": "Month-End Bank Cleanup",
+  "version": "1.0.0",
+  "publisher": {
+    "id": "sprk",
+    "name": "SPRK"
+  },
+  "description": "Three read-only bank exception reports for pending review, unreconciled confirmed activity, and active outflows missing a vendor.",
+  "runtime": {
+    "minAppVersion": "1.0.0"
+  },
+  "capabilities": {
+    "reports.query": {
+      "required": true,
+      "sources": [
+        {
+          "sourceId": "bank.register",
+          "sourceVersion": "1"
+        }
+      ]
+    },
+    "surfaces.contribute": {
+      "required": true,
+      "surfaces": [
+        "reports.catalog.entries"
+      ]
+    }
+  },
+  "extensionManifests": [
+    {
+      "extensionId": "pending-bank-review",
+      "path": "extensions/pending-bank-review.json"
+    },
+    {
+      "extensionId": "unreconciled-confirmed-bank-activity",
+      "path": "extensions/unreconciled-confirmed-bank-activity.json"
+    },
+    {
+      "extensionId": "bank-outflows-missing-vendor",
+      "path": "extensions/bank-outflows-missing-vendor.json"
+    }
+  ]
+}

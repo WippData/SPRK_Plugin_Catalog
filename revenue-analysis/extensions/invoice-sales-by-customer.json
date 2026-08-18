@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "invoice-sales-by-customer",
+  "type": "report",
+  "name": "Customer Sales by Month",
+  "version": "1.0.0",
+  "description": "Active issued invoice-line sales trended by invoice month and customer.",
+  "targets": { "companyScoped": true },
+  "definition": {
+    "definitionVersion": "2",
+    "report": {
+      "reportId": "invoice-sales-by-customer",
+      "title": "Customer Sales by Month",
+      "category": "Sales",
+      "description": "Source-document invoice-line sales trended by invoice month and customer. This is not GL recognized income and is not expected to equal Income by Customer."
+    },
+    "data": {
+      "source": "invoice.lines",
+      "grain": "invoice_line",
+      "basis": { "kind": "source_document", "dateField": "invoice.date", "amountMode": "base_currency", "postingState": "issued_or_posted" },
+      "requiredFilters": [
+        { "field": "invoice.isActive", "op": "eq", "value": true },
+        { "field": "invoice.status", "op": "in", "value": ["open", "partial", "paid"] }
+      ],
+      "exposedFilters": [
+        { "field": "invoice.date", "label": "Invoice date", "ops": ["between", "gte", "lte"] },
+        { "field": "customer.name", "label": "Customer", "ops": ["eq", "contains", "in"] },
+        { "field": "line.sku", "label": "SKU", "ops": ["eq", "contains", "in", "is_empty", "is_not_empty"] },
+        { "field": "invoice.paymentState", "label": "Payment status", "ops": ["eq", "in"] }
+      ],
+      "allowedGroupBy": ["customer.name", "line.sku", "date.month", "date.year", "invoice.paymentState"],
+      "measures": [
+        { "measureId": "sales_total", "field": "line.amount", "function": "sum", "label": "Invoice-line sales" },
+        { "measureId": "line_count", "field": "row.count", "function": "count", "label": "Invoice lines" }
+      ],
+      "defaultSort": [
+        { "field": "date.month", "direction": "asc" },
+        { "field": "customer.name", "direction": "asc" }
+      ]
+    },
+    "views": [{
+      "viewId": "table",
+      "kind": "table",
+      "label": "Customer sales trend",
+      "columns": ["date.month", "customer.name", "sales_total", "line_count"],
+      "groupBy": ["date.month", "customer.name"]
+    }],
+    "customization": { "allowUserFilters": true, "allowUserGroupBy": true, "allowSavedViews": true, "maxGroupLevels": 2 }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "revenue-analysis",
+  "name": "Invoice Sales Analysis",
+  "version": "1.0.0",
+  "publisher": {
+    "id": "sprk",
+    "name": "SPRK"
+  },
+  "description": "Analyze active issued invoice-line sales by customer, SKU, and month without replacing GL income reporting.",
+  "runtime": {
+    "minAppVersion": "1.0.0"
+  },
+  "capabilities": {
+    "reports.query": {
+      "required": true,
+      "sources": [
+        {
+          "sourceId": "invoice.lines",
+          "sourceVersion": "1"
+        }
+      ]
+    },
+    "surfaces.contribute": {
+      "required": true,
+      "surfaces": [
+        "reports.catalog.entries"
+      ]
+    }
+  },
+  "extensionManifests": [
+    {
+      "extensionId": "invoice-sales-by-customer",
+      "path": "extensions/invoice-sales-by-customer.json"
+    },
+    {
+      "extensionId": "invoice-sales-by-sku",
+      "path": "extensions/invoice-sales-by-sku.json"
+    },
+    {
+      "extensionId": "invoice-sales-by-month",
+      "path": "extensions/invoice-sales-by-month.json"
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "provider-connector",
+  "type": "connector",
+  "name": "Example Bank Provider Connector",
+  "version": "1.0.0",
+  "targets": {
+    "companyScoped": true
+  },
+  "resources": [
+    {
+      "resourceId": "provider-connection",
+      "kind": "connector",
+      "schemaVersion": 1,
+      "scope": "company"
+    }
+  ],
+  "definition": {
+    "authMethods": [
+      {
+        "authMethodId": "provider-token",
+        "label": "Provider API token",
+        "type": "api_key",
+        "credentialFields": [
+          {
+            "key": "provider-token",
+            "label": "Provider API token",
+            "kind": "api_key",
+            "required": true
+          }
+        ],
+        "injections": [
+          {
+            "credentialKey": "provider-token",
+            "in": "header",
+            "name": "Authorization",
+            "prefix": "Bearer "
+          }
+        ]
+      }
+    ],
+    "api": {
+      "baseUrl": "https://api.example.com",
+      "executionPolicy": {
+        "attemptTimeoutMs": 20000,
+        "totalTimeoutMs": 60000,
+        "retry": {
+          "maxAttempts": 3,
+          "initialBackoffMs": 500,
+          "maxBackoffMs": 5000,
+          "retryOn": ["connection_error", "timeout", "429", "500", "502", "503", "504"]
+        }
+      },
+      "operations": [
+        {
+          "operationId": "discover-accounts",
+          "label": "Discover provider accounts",
+          "method": "GET",
+          "path": "/v1/accounts",
+          "connectionDiscovery": {
+            "accountsPath": "accounts",
+            "fields": {
+              "externalAccountId": "id",
+              "displayName": "name",
+              "institutionName": "institution",
+              "mask": "mask",
+              "type": "type",
+              "subtype": "subtype",
+              "currencyCode": "currency"
+            }
+          }
+        },
+        {
+          "operationId": "list-transactions",
+          "label": "List bank transactions",
+          "method": "GET",
+          "path": "/v1/transactions"
+        }
+      ]
+    }
+  }
+}

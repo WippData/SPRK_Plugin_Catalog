@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "customer-connector",
+  "type": "connector",
+  "name": "Example Customer Provider Connector",
+  "version": "1.0.0",
+  "targets": {
+    "companyScoped": true
+  },
+  "resources": [
+    {
+      "resourceId": "customer-connection",
+      "kind": "connector",
+      "schemaVersion": 1,
+      "scope": "company"
+    }
+  ],
+  "definition": {
+    "authMethods": [
+      {
+        "authMethodId": "provider-token",
+        "label": "Provider API token",
+        "type": "api_key",
+        "credentialFields": [
+          {
+            "key": "provider-token",
+            "label": "Provider API token",
+            "kind": "api_key",
+            "required": true
+          }
+        ],
+        "injections": [
+          {
+            "credentialKey": "provider-token",
+            "in": "header",
+            "name": "Authorization",
+            "prefix": "Bearer "
+          }
+        ]
+      }
+    ],
+    "api": {
+      "baseUrl": "https://api.example.com",
+      "executionPolicy": {
+        "attemptTimeoutMs": 20000,
+        "totalTimeoutMs": 60000,
+        "retry": {
+          "maxAttempts": 3,
+          "initialBackoffMs": 500,
+          "maxBackoffMs": 5000,
+          "retryOn": ["connection_error", "timeout", "429", "500", "502", "503", "504"]
+        }
+      },
+      "operations": [
+        {
+          "operationId": "list-customers",
+          "label": "List customers",
+          "method": "GET",
+          "path": "/v1/customers"
+        }
+      ]
+    }
+  }
+}

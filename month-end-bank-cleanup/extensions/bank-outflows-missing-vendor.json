@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "bank-outflows-missing-vendor",
+  "type": "report",
+  "name": "Bank Outflows Missing Vendor",
+  "version": "1.0.0",
+  "description": "Active, non-excluded bank outflows without an assigned vendor.",
+  "targets": {
+    "companyScoped": true
+  },
+  "definition": {
+    "definitionVersion": "2",
+    "report": {
+      "reportId": "bank-outflows-missing-vendor",
+      "title": "Bank Outflows Missing Vendor",
+      "category": "Banking",
+      "description": "Active, non-excluded bank outflows without an assigned vendor. Assignment and accounting remain in the native Banking workflow."
+    },
+    "data": {
+      "source": "bank.register",
+      "grain": "bank_transaction",
+      "basis": {
+        "kind": "bank_evidence",
+        "dateField": "bank.date",
+        "amountMode": "base_currency",
+        "postingState": "all"
+      },
+      "requiredFilters": [
+        {
+          "field": "bank.isActive",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "field": "bank.status",
+          "op": "ne",
+          "value": "excluded"
+        },
+        {
+          "field": "bank.direction",
+          "op": "eq",
+          "value": "outflow"
+        },
+        {
+          "field": "vendor.id",
+          "op": "is_empty"
+        }
+      ],
+      "exposedFilters": [
+        {
+          "field": "bank.date",
+          "label": "Bank date",
+          "ops": [
+            "between",
+            "gte",
+            "lte"
+          ]
+        },
+        {
+          "field": "account.name",
+          "label": "Bank account",
+          "ops": [
+            "eq",
+            "contains",
+            "in"
+          ]
+        },
+        {
+          "field": "bank.status",
+          "label": "Bank status",
+          "ops": [
+            "eq",
+            "in"
+          ]
+        }
+      ],
+      "defaultSort": [
+        {
+          "field": "bank.date",
+          "direction": "asc"
+        },
+        {
+          "field": "account.name",
+          "direction": "asc"
+        }
+      ]
+    },
+    "views": [
+      {
+        "viewId": "detail",
+        "kind": "table",
+        "label": "Outflows missing vendor",
+        "columns": [
+          "bank.date",
+          "account.name",
+          "bank.status",
+          "bank.description",
+          "bank.spent",
+          "bank.amount"
+        ]
+      }
+    ],
+    "customization": {
+      "allowUserFilters": true,
+      "allowUserGroupBy": false,
+      "allowSavedViews": true,
+      "maxGroupLevels": 0
+    }
+  }
+}

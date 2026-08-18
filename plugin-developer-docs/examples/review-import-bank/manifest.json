@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "review-import-bank",
+  "name": "Example Bank Review Import",
+  "version": "1.0.0",
+  "publisher": {
+    "id": "example",
+    "name": "Example Publisher"
+  },
+  "description": "Complete connector-backed bank transaction import that stages rows for native review.",
+  "runtime": {
+    "minAppVersion": "1.0.0"
+  },
+  "capabilities": {
+    "internetAccess": {
+      "required": true,
+      "reason": "Fetches provider accounts and transactions only when a user starts the import."
+    },
+    "api.execute": {
+      "required": true,
+      "methods": ["GET"]
+    },
+    "plugin.bindings.manage": {
+      "required": true,
+      "targets": ["accounts"]
+    },
+    "actions.run": {
+      "required": true,
+      "allowedTriggers": ["manual"]
+    },
+    "review": {
+      "required": true,
+      "imports": [
+        { "targetEntity": "bank_register" }
+      ]
+    },
+    "surfaces.contribute": {
+      "required": true,
+      "surfaces": ["banking.import.source.actions"]
+    }
+  },
+  "extensionManifests": [
+    {
+      "extensionId": "provider-connector",
+      "path": "extensions/connector.json"
+    },
+    {
+      "extensionId": "provider-configuration",
+      "path": "extensions/configuration.json"
+    },
+    {
+      "extensionId": "bank-import-actions",
+      "path": "extensions/actions.json"
+    },
+    {
+      "extensionId": "bank-import-surface",
+      "path": "extensions/surface.json"
+    }
+  ]
+}

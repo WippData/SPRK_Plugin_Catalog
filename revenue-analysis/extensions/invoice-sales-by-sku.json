@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "invoice-sales-by-sku",
+  "type": "report",
+  "name": "Invoice Sales by Item/SKU",
+  "version": "1.0.0",
+  "description": "Active issued invoice-line sales and quantities grouped by SKU and line description.",
+  "targets": { "companyScoped": true },
+  "definition": {
+    "definitionVersion": "2",
+    "report": {
+      "reportId": "invoice-sales-by-sku",
+      "title": "Invoice Sales by Item/SKU",
+      "category": "Sales",
+      "description": "Source-document invoice-line sales and source-unit quantities by SKU and line description. Blank SKUs remain visible and are separated by description."
+    },
+    "data": {
+      "source": "invoice.lines",
+      "grain": "invoice_line",
+      "basis": { "kind": "source_document", "dateField": "invoice.date", "amountMode": "base_currency", "postingState": "issued_or_posted" },
+      "requiredFilters": [
+        { "field": "invoice.isActive", "op": "eq", "value": true },
+        { "field": "invoice.status", "op": "in", "value": ["open", "partial", "paid"] }
+      ],
+      "exposedFilters": [
+        { "field": "invoice.date", "label": "Invoice date", "ops": ["between", "gte", "lte"] },
+        { "field": "line.sku", "label": "SKU", "ops": ["eq", "contains", "in", "is_empty", "is_not_empty"] },
+        { "field": "line.description", "label": "Line description", "ops": ["contains", "is_empty", "is_not_empty"] },
+        { "field": "customer.name", "label": "Customer", "ops": ["eq", "contains", "in"] }
+      ],
+      "allowedGroupBy": ["line.sku", "line.description", "customer.name", "date.month", "date.year", "invoice.paymentState"],
+      "measures": [
+        { "measureId": "sales_total", "field": "line.amount", "function": "sum", "label": "Invoice-line sales" },
+        { "measureId": "quantity_total", "field": "line.quantity", "function": "sum", "label": "Quantity (source units)" },
+        { "measureId": "line_count", "field": "row.count", "function": "count", "label": "Invoice lines" }
+      ],
+      "defaultSort": [{ "field": "line.sku", "direction": "asc" }]
+    },
+    "views": [{
+      "viewId": "table",
+      "kind": "table",
+      "label": "By item/SKU",
+      "columns": ["line.sku", "line.description", "sales_total", "quantity_total", "line_count"],
+      "groupBy": ["line.sku", "line.description"]
+    }],
+    "customization": { "allowUserFilters": true, "allowUserGroupBy": true, "allowSavedViews": true, "maxGroupLevels": 2 }
+  }
+}

@@ -28,8 +28,13 @@ the catalog or current installer supports schema `1.0`.
 - `catalog.json`: generated public catalog consumed by SPRK.
 - `schemas/catalog.schema.json`: public JSON Schema for `catalog.json`.
 - `scripts/catalog.py`: dependency-free validation and deterministic ZIP builder.
+- `scripts/sprkql.py`: restricted SQL-like authoring helper for native table reports.
+- `plugin-developer-docs/`: normative schema-v2 plugin developer guide, JSON Schema,
+  report guide, and executable examples.
+- `tests/`: developer-tooling and documentation contract tests.
 - `dist/`: generated release assets; each archive has `manifest.json` at its root.
-- `credentialed-github-api-demo/` and `on-demand-weather/`: cataloged schema `2` sources.
+- `month-end-bank-cleanup/` and `revenue-analysis/`: cataloged schema `2` sources.
+- `on-demand-weather/`: preserved, uncataloged schema `2` demonstration source.
 - `employees/`: preserved, uncataloged legacy schema `1.0` source.
 
 Pre-existing ZIPs at the repository root are preserved staging artifacts, not release
@@ -50,6 +55,26 @@ The equivalent npm-friendly commands are:
 ```bash
 npm run build
 npm test
+```
+
+`npm test` runs both the plugin developer documentation/tooling contract tests
+and the deterministic catalog check.
+
+Plugin developers should start with
+[`plugin-developer-docs/README.md`](plugin-developer-docs/README.md). Complete
+validated examples cover detail reports, grouped reports, bank review imports,
+and customer review imports. Validate any plugin folder with:
+
+```bash
+npm run validate:plugin -- path/to/plugin-folder
+```
+
+For native custom reports, also use the
+[`Native Custom Reports`](plugin-developer-docs/native-custom-reports.md) guide
+and exercise the restricted SPRKQL compiler with:
+
+```bash
+python3 -m unittest discover -s tests -p 'test*.py'
 ```
 
 `build` validates each package, verifies every declared extension SHA-256, creates sorted

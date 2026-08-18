@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "bank-import-surface",
+  "type": "existing_page_actions",
+  "name": "Example Bank Import Surface",
+  "version": "1.0.0",
+  "targets": {
+    "companyScoped": true
+  },
+  "definition": {
+    "targetPageKey": "banking.import.source.actions",
+    "actions": [
+      {
+        "actionId": "import-bank-transactions",
+        "label": "Import from example provider",
+        "kind": "run_action",
+        "action": {
+          "extensionId": "bank-import-actions",
+          "actionId": "import-bank-transactions"
+        }
+      }
+    ]
+  }
+}
