@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "invoice-sales-by-month",
+  "type": "report",
+  "name": "Invoice Sales by Month",
+  "version": "1.0.0",
+  "description": "Active issued invoice-line sales grouped by invoice month.",
+  "targets": { "companyScoped": true },
+  "definition": {
+    "definitionVersion": "2",
+    "report": {
+      "reportId": "invoice-sales-by-month",
+      "title": "Invoice Sales by Month",
+      "category": "Sales",
+      "description": "Source-document invoice-line sales by invoice month, using invoice date rather than GL accounting date."
+    },
+    "data": {
+      "source": "invoice.lines",
+      "grain": "invoice_line",
+      "basis": { "kind": "source_document", "dateField": "invoice.date", "amountMode": "base_currency", "postingState": "issued_or_posted" },
+      "requiredFilters": [
+        { "field": "invoice.isActive", "op": "eq", "value": true },
+        { "field": "invoice.status", "op": "in", "value": ["open", "partial", "paid"] }
+      ],
+      "exposedFilters": [
+        { "field": "invoice.date", "label": "Invoice date", "ops": ["between", "gte", "lte"] },
+        { "field": "customer.name", "label": "Customer", "ops": ["eq", "contains", "in"] },
+        { "field": "line.sku", "label": "SKU", "ops": ["eq", "contains", "in", "is_empty", "is_not_empty"] },
+        { "field": "invoice.paymentState", "label": "Payment status", "ops": ["eq", "in"] }
+      ],
+      "allowedGroupBy": ["date.month", "date.year", "customer.name", "line.sku", "invoice.paymentState"],
+      "measures": [
+        { "measureId": "sales_total", "field": "line.amount", "function": "sum", "label": "Invoice-line sales" },
+        { "measureId": "line_count", "field": "row.count", "function": "count", "label": "Invoice lines" }
+      ],
+      "defaultSort": [{ "field": "date.month", "direction": "asc" }]
+    },
+    "views": [{
+      "viewId": "table",
+      "kind": "table",
+      "label": "By month",
+      "columns": ["date.month", "sales_total", "line_count"],
+      "groupBy": ["date.month"]
+    }],
+    "customization": { "allowUserFilters": true, "allowUserGroupBy": true, "allowSavedViews": true, "maxGroupLevels": 2 }
+  }
+}

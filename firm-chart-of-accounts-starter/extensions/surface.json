@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "chart-template-surface",
+  "type": "existing_page_actions",
+  "name": "Chart Template Action",
+  "version": "1.0.0",
+  "description": "Adds a reviewed chart-template starter to the Chart of Accounts page.",
+  "targets": {
+    "companyScoped": true
+  },
+  "definition": {
+    "targetPageKey": "chart",
+    "actions": [
+      {
+        "actionId": "stage-chart-template",
+        "label": "Start from firm template",
+        "kind": "run_action",
+        "action": {
+          "extensionId": "chart-template-actions",
+          "actionId": "stage-chart-template"
+        }
+      }
+    ]
+  }
+}

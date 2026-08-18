@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "unreconciled-confirmed-bank-activity",
+  "type": "report",
+  "name": "Unreconciled Confirmed Bank Activity",
+  "version": "1.0.0",
+  "description": "Confirmed active bank transactions not currently marked reconciled.",
+  "targets": {
+    "companyScoped": true
+  },
+  "definition": {
+    "definitionVersion": "2",
+    "report": {
+      "reportId": "unreconciled-confirmed-bank-activity",
+      "title": "Unreconciled Confirmed Bank Activity",
+      "category": "Banking",
+      "description": "Confirmed active bank transactions not currently marked reconciled."
+    },
+    "data": {
+      "source": "bank.register",
+      "grain": "bank_transaction",
+      "basis": {
+        "kind": "reconciliation",
+        "dateField": "bank.date",
+        "amountMode": "base_currency",
+        "postingState": "all"
+      },
+      "requiredFilters": [
+        {
+          "field": "bank.isActive",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "field": "bank.status",
+          "op": "eq",
+          "value": "confirmed"
+        },
+        {
+          "field": "bank.reconciled",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "exposedFilters": [
+        {
+          "field": "bank.date",
+          "label": "Bank date",
+          "ops": [
+            "between",
+            "gte",
+            "lte"
+          ]
+        },
+        {
+          "field": "account.name",
+          "label": "Bank account",
+          "ops": [
+            "eq",
+            "contains",
+            "in"
+          ]
+        },
+        {
+          "field": "vendor.name",
+          "label": "Vendor",
+          "ops": [
+            "eq",
+            "contains",
+            "in",
+            "is_empty"
+          ]
+        },
+        {
+          "field": "bank.direction",
+          "label": "Direction",
+          "ops": [
+            "eq",
+            "in"
+          ]
+        }
+      ],
+      "defaultSort": [
+        {
+          "field": "bank.date",
+          "direction": "asc"
+        },
+        {
+          "field": "account.name",
+          "direction": "asc"
+        }
+      ]
+    },
+    "views": [
+      {
+        "viewId": "detail",
+        "kind": "table",
+        "label": "Unreconciled transactions",
+        "columns": [
+          "bank.date",
+          "account.name",
+          "bank.description",
+          "vendor.name",
+          "bank.direction",
+          "bank.received",
+          "bank.spent",
+          "bank.amount"
+        ]
+      }
+    ],
+    "customization": {
+      "allowUserFilters": true,
+      "allowUserGroupBy": false,
+      "allowSavedViews": true,
+      "maxGroupLevels": 0
+    }
+  }
+}
