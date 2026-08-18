@@ -9,26 +9,6 @@
   },
   "plugins": [
     {
-      "id": "firm-chart-of-accounts-starter",
-      "name": "Firm Chart of Accounts Starter",
-      "summary": "Stages professional-services, retail/e-commerce, or nonprofit starter charts through SPRK's native Chart of Accounts import review.",
-      "free": true,
-      "sourceUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/tree/main/firm-chart-of-accounts-starter",
-      "supportUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/issues",
-      "releases": [
-        {
-          "version": "1.0.0",
-          "schemaVersion": "2",
-          "fileName": "firm-chart-of-accounts-starter-1.0.0.zip",
-          "assetUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/releases/download/firm-chart-of-accounts-starter-v1.0.0/firm-chart-of-accounts-starter-1.0.0.zip",
-          "sha256": "146fb2dd749dc1068d427d9f7fa3d0e99c115a1260c7d0dd3453909c9a023c60",
-          "minAppVersion": "1.0.0",
-          "releaseNotes": "Initial official catalog release of Firm Chart of Accounts Starter with three versioned firm templates.",
-          "publishedAt": "2026-08-17T00:00:00Z"
-        }
-      ]
-    },
-    {
       "id": "month-end-bank-cleanup",
       "name": "Month-End Bank Cleanup",
       "summary": "Adds three read-only Banking exception reports for pending review, unreconciled confirmed activity, and outflows missing a vendor.",

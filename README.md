@@ -33,8 +33,7 @@ the catalog or current installer supports schema `1.0`.
   report guide, and executable examples.
 - `tests/`: developer-tooling and documentation contract tests.
 - `dist/`: generated release assets; each archive has `manifest.json` at its root.
-- `firm-chart-of-accounts-starter/`, `month-end-bank-cleanup/`, and
-  `revenue-analysis/`: cataloged schema `2` sources.
+- `month-end-bank-cleanup/` and `revenue-analysis/`: cataloged schema `2` sources.
 - `on-demand-weather/`: preserved, uncataloged schema `2` demonstration source.
 - `employees/`: preserved, uncataloged legacy schema `1.0` source.
 
