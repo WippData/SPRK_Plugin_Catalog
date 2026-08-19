@@ -17,6 +17,7 @@ contain only lowercase letters, numbers, periods, underscores, or hyphens.
 | HTTP method | `GET`, `POST`, `PUT`, `PATCH`, `DELETE` |
 | Page kind | `list`, `transaction`, `accounting_schedule` |
 | Action trigger | `manual` |
+| Workflow trigger | `{ "type": "manual" }` |
 
 ## Root manifest
 
@@ -103,6 +104,7 @@ resource; a configuration extension needs exactly one configuration resource.
 | `report` | Optional `definitionVersion: "2"`, `report`, `data`, table `views`, and optional `customization`. Parameters and top-level source/query/table shapes are not supported. |
 | `connector` | `authMethods` and `api`; `api` has `baseUrl`, `executionPolicy`, and `operations`. |
 | `actions` | `actions`, each with an ID, label, `trigger: "manual"`, optional binding/inputs, and bounded steps. |
+| `workflow` | `definitionVersion: 1` and `workflows`; each workflow targets a resource-backed plugin page and declares manual trigger, optional typed inputs, and bounded commands. |
 | `plugin_configuration` | `title`, optional description, and `sections` of type `fields`, `connection`, or `bindings`. |
 | `existing_page_actions` | `targetPageKey` and one or more `run_action` actions. |
 
@@ -112,7 +114,8 @@ resource; a configuration extension needs exactly one configuration resource.
 
 An action step has a unique `id`, a `command`, and a command-specific `with`
 object. Supported commands: `data.list`, `data.get`, `data.resolve`,
-`api.execute`, `review.import`, and `resource.apply_delta`. Inputs use `text`,
+`api.execute`, `review.import`, `review.propose`, and compatibility-only
+`resource.apply_delta`. Inputs use `text`,
 `number`, `boolean`, `date`, or `select`.
 
 An existing-page action that invokes an action is:
@@ -129,6 +132,20 @@ An existing-page action that invokes an action is:
 `run_action` is the only existing-page action kind in the new-plugin contract.
 Older direct API-action shapes are compatibility-only and are intentionally
 excluded from this guide and its JSON Schema.
+
+### Manual workflows
+
+Workflow inputs use `text`, `textarea`, `number`, `boolean`, `date`,
+`date_range`, `money`, `select` (optionally multiple), `reference`, or
+`dimension_assignments`. Sources are `$context.selection.records`, an earlier
+`$steps.COMMAND_ID.records`, or `$item` inside calculate-only `control.for_each`.
+
+Commands are `records.query`, `records.filter`, `records.sort`,
+`records.distinct`, `records.aggregate`, `records.join`, `calculate`,
+`control.for_each`, `control.if`, `control.switch`, `control.stop`,
+`review.records`, and `accounting.journal.preview`. See
+[Manual Plugin Workflows](manual-plugin-workflows.md) for exact models,
+structured expressions, context paths, branch restrictions, and graph limits.
 
 For a native import action, set the extension's `targetPageKey` to the granted
 surface: `banking.import.source.actions`, `chart`, `customers`, `vendors`, or

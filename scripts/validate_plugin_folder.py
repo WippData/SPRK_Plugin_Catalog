@@ -75,6 +75,16 @@ REVIEW_SURFACES = {
     "vendors": "vendors",
     "items": "items",
 }
+WORKFLOW_DATA_ONLY_COMMANDS = {
+    "records.filter", "records.sort", "records.distinct", "records.aggregate",
+    "records.join", "calculate", "control.if", "control.switch", "control.stop",
+}
+WORKFLOW_LIST_COMMANDS = {
+    "records.query", "records.filter", "records.sort", "records.distinct",
+    "records.aggregate", "records.join", "review.records", "control.for_each",
+    "control.if", "control.switch", "control.stop", "calculate",
+    "accounting.journal.preview",
+}
 
 
 class ValidationFailure(Exception):
@@ -240,6 +250,211 @@ def source_parts(source: str) -> tuple[str, str] | None:
     return (match.group(1), match.group(2)) if match else None
 
 
+def workflow_source_command(source: Any) -> str | None:
+    if not isinstance(source, str):
+        return None
+    match = re.fullmatch(r"\$steps\.([a-z0-9][a-z0-9._-]{0,127})\.records", source)
+    return match.group(1) if match else None
+
+
+def workflow_resource(extensions: dict[str, dict[str, Any]], extension_id: Any, resource_id: Any) -> dict[str, Any] | None:
+    extension = extensions.get(extension_id)
+    if not isinstance(extension, dict):
+        return None
+    return next((item for item in extension.get("resources", []) if item.get("resourceId") == resource_id and item.get("kind") == "records"), None)
+
+
+def workflow_input_errors(prefix: str, item: dict[str, Any], manifest: dict[str, Any], extensions: dict[str, dict[str, Any]]) -> list[str]:
+    errors: list[str] = []
+    input_type = item.get("type")
+    multiple = item.get("multiple") is True or input_type == "multi_select"
+    options = item.get("options", [])
+    if item.get("multiple") is True and input_type not in {"select", "reference"}:
+        errors.append(f"{prefix}.multiple: is valid only for select or reference")
+    if options and input_type not in {"select", "multi_select"}:
+        errors.append(f"{prefix}.options: is valid only for select or multi_select")
+    if "reference" in item and input_type != "reference":
+        errors.append(f"{prefix}.reference: is valid only for reference inputs")
+    option_values = [option.get("value") for option in options if isinstance(option, dict)]
+    if len(set(option_values)) != len(option_values):
+        errors.append(f"{prefix}.options: option values must be unique")
+    default = item.get("defaultValue")
+    if "defaultValue" in item:
+        valid = True
+        if input_type in {"text", "textarea"}:
+            valid = isinstance(default, str)
+        elif input_type == "number":
+            valid = isinstance(default, (int, float)) and not isinstance(default, bool) and math.isfinite(default)
+        elif input_type == "boolean":
+            valid = isinstance(default, bool)
+        elif input_type == "date":
+            valid = isinstance(default, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", default) is not None
+        elif input_type == "date_range":
+            valid = isinstance(default, dict) and set(default) == {"startDate", "endDate"} and all(isinstance(default[key], str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", default[key]) for key in default)
+            valid = bool(valid and default["startDate"] <= default["endDate"])
+        elif input_type == "money":
+            valid = isinstance(default, dict) and set(default) == {"amount", "currency"} and isinstance(default.get("amount"), (int, float)) and not isinstance(default.get("amount"), bool) and math.isfinite(default["amount"]) and isinstance(default.get("currency"), str) and re.fullmatch(r"[A-Z]{3}", default["currency"]) is not None
+        elif input_type in {"select", "multi_select"}:
+            values = default if multiple else [default]
+            valid = isinstance(values, list) and len(values) <= 100 and all(isinstance(value, str) and value in option_values for value in values) and len(set(values)) == len(values)
+        elif input_type == "reference":
+            values = default if multiple or item.get("reference", {}).get("multiple") is True else [default]
+            valid = isinstance(values, list) and len(values) <= 100 and all(isinstance(value, str) and value.strip() for value in values) and len(set(values)) == len(values)
+        elif input_type == "dimension_assignments":
+            valid = isinstance(default, dict) and len(default) <= 100 and all(isinstance(key, str) and key and isinstance(value, str) and value for key, value in default.items())
+        if not valid:
+            errors.append(f"{prefix}.defaultValue: does not match input type")
+    if input_type == "reference":
+        reference = item.get("reference", {})
+        if reference.get("kind") == "native":
+            entity = reference.get("entity")
+            grants = capability_list(manifest, "data", "sprk")
+            operations = next((grant.get("operations", []) for grant in grants if isinstance(grant, dict) and grant.get("entity") == entity), [])
+            if not capability_required(manifest, "data") or not {"list", "get"}.issubset(set(operations)):
+                errors.append(f"{prefix}.reference: native options require capabilities.data list and get for {entity}")
+            if reference.get("accountFilter") is not None and entity != "accounts":
+                errors.append(f"{prefix}.reference.accountFilter: is valid only for accounts")
+        elif reference.get("kind") == "plugin_resource":
+            if not capability_required(manifest, "records.query"):
+                errors.append(f"{prefix}.reference: plugin resource options require capabilities.records.query")
+            resource = workflow_resource(extensions, reference.get("extensionId"), reference.get("resourceId"))
+            if resource is None or resource.get("access") == "host_only":
+                errors.append(f"{prefix}.reference: must target a user-accessible same-plugin records resource")
+    return errors
+
+
+def workflow_expression_input_errors(value: Any, input_ids: set[str], prefix: str) -> list[str]:
+    errors: list[str] = []
+    if isinstance(value, dict):
+        if value.get("kind") == "input" and value.get("input") not in input_ids:
+            errors.append(f"{prefix}.input: must reference a declared workflow input")
+        if "input" in value and value.get("kind") is None and value.get("input") not in input_ids:
+            errors.append(f"{prefix}.input: must reference a declared workflow input")
+        for key, child in value.items():
+            errors.extend(workflow_expression_input_errors(child, input_ids, f"{prefix}.{key}"))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            errors.extend(workflow_expression_input_errors(child, input_ids, f"{prefix}[{index}]"))
+    return errors
+
+
+def validate_workflow_commands(commands: list[dict[str, Any]], prefix: str, input_ids: set[str], state: dict[str, Any], available: set[str], depth: int = 0, data_only: bool = False, for_each: bool = False) -> list[str]:
+    errors: list[str] = []
+    if depth > 3:
+        return [f"{prefix}: exceeds maximum branch depth 3"]
+    state["total"] += len(commands)
+    if state["total"] > 128:
+        errors.append(f"{prefix}: workflow exceeds 128 total commands")
+    for index, command in enumerate(commands):
+        cp = f"{prefix}[{index}]"
+        command_id = command.get("id")
+        name = command.get("command")
+        spec = command.get("with", {})
+        if command_id in state["seen"]:
+            errors.append(f"{cp}.id: duplicates another workflow command")
+        state["seen"].add(command_id)
+        if data_only and name not in WORKFLOW_DATA_ONLY_COMMANDS:
+            errors.append(f"{cp}.command: nested branches may contain data-only commands only")
+        if for_each and name != "calculate":
+            errors.append(f"{cp}.command: control.for_each bodies may contain calculate only")
+        sources: list[Any] = []
+        if name == "records.join":
+            sources.extend([spec.get("left"), spec.get("right")])
+        elif name != "records.query" and isinstance(spec, dict) and "source" in spec:
+            sources.append(spec.get("source"))
+        for source in sources:
+            if source == "$context.selection.records":
+                continue
+            if source == "$item" and for_each:
+                continue
+            source_id = workflow_source_command(source)
+            if source_id is None or source_id not in available:
+                errors.append(f"{cp}.with: source must reference selection, the current item, or an earlier list-producing command")
+        errors.extend(workflow_expression_input_errors(spec, input_ids, f"{cp}.with"))
+        if name == "review.records":
+            state["reviews"] += 1
+            if state["reviews"] > 1:
+                errors.append(f"{cp}: only one review.records command is supported")
+        if name == "accounting.journal.preview":
+            if state["reviews"] != 1:
+                errors.append(f"{cp}: accounting.journal.preview requires one earlier review.records command")
+            if index != len(commands) - 1:
+                errors.append(f"{cp}: accounting.journal.preview must be final")
+        if name == "control.stop" and index != len(commands) - 1:
+            errors.append(f"{cp}: control.stop must be final in its block")
+        if name == "control.for_each":
+            errors.extend(validate_workflow_commands(spec.get("commands", []), f"{cp}.with.commands", input_ids, state, set(available), depth + 1, False, True))
+        elif name == "control.if":
+            errors.extend(validate_workflow_commands(spec.get("then", []), f"{cp}.with.then", input_ids, state, set(available), depth + 1, True))
+            if spec.get("else"):
+                errors.extend(validate_workflow_commands(spec["else"], f"{cp}.with.else", input_ids, state, set(available), depth + 1, True))
+        elif name == "control.switch":
+            for case_index, case in enumerate(spec.get("cases", [])):
+                errors.extend(validate_workflow_commands(case.get("commands", []), f"{cp}.with.cases[{case_index}].commands", input_ids, state, set(available), depth + 1, True))
+            if spec.get("default"):
+                errors.extend(validate_workflow_commands(spec["default"], f"{cp}.with.default", input_ids, state, set(available), depth + 1, True))
+        if name in WORKFLOW_LIST_COMMANDS:
+            available.add(command_id)
+    return errors
+
+
+def workflow_bundle_errors(extension_id: str, extension: dict[str, Any], manifest: dict[str, Any], extensions: dict[str, dict[str, Any]]) -> list[str]:
+    errors: list[str] = []
+    if not capability_required(manifest, "workflows.run"):
+        errors.append(f"extensions.{extension_id}: workflow requires capabilities.workflows.run.required")
+    surfaces = capability_list(manifest, "surfaces.contribute", "surfaces")
+    if not capability_required(manifest, "surfaces.contribute") or "plugin_pages.header.actions" not in surfaces:
+        errors.append(f"extensions.{extension_id}: manual workflow requires plugin_pages.header.actions")
+    workflow_ids: set[Any] = set()
+    for workflow_index, workflow in enumerate(extension.get("definition", {}).get("workflows", [])):
+        wp = f"extensions.{extension_id}.definition.workflows[{workflow_index}]"
+        workflow_id = workflow.get("workflowId")
+        if workflow_id in workflow_ids:
+            errors.append(f"{wp}.workflowId: duplicate")
+        workflow_ids.add(workflow_id)
+        target_id = workflow.get("targetExtensionId")
+        target = extensions.get(target_id, {})
+        data_source = target.get("definition", {}).get("page", {}).get("dataSource", {})
+        target_resource = workflow_resource(extensions, target_id, data_source.get("resourceId"))
+        if target.get("type") != "new_page" or data_source.get("kind") != "resource":
+            errors.append(f"{wp}.targetExtensionId: must reference a same-plugin resource-backed new_page")
+        elif target_resource is None or target_resource.get("access") == "host_only":
+            errors.append(f"{wp}.targetExtensionId: target resource must be user-accessible records")
+        input_ids: set[str] = set()
+        for input_index, item in enumerate(workflow.get("inputs", [])):
+            ip = f"{wp}.inputs[{input_index}]"
+            if item.get("inputId") in input_ids:
+                errors.append(f"{ip}.inputId: duplicate")
+            input_ids.add(item.get("inputId"))
+            errors.extend(workflow_input_errors(ip, item, manifest, extensions))
+        commands = workflow.get("commands", [])
+        state: dict[str, Any] = {"seen": set(), "total": 0, "reviews": 0}
+        errors.extend(validate_workflow_commands(commands, f"{wp}.commands", input_ids, state, set()))
+        for command_index, command in enumerate(commands):
+            cp = f"{wp}.commands[{command_index}]"
+            if command.get("command") != "records.query":
+                continue
+            spec = command.get("with", {})
+            if "resource" in spec:
+                ref = spec.get("resource", {})
+                resource = workflow_resource(extensions, ref.get("extensionId"), ref.get("resourceId"))
+                if not capability_required(manifest, "records.query"):
+                    errors.append(f"{cp}: plugin records query requires capabilities.records.query")
+                if resource is None or resource.get("access") == "host_only":
+                    errors.append(f"{cp}: query must target a user-accessible same-plugin records resource")
+                elif ref.get("extensionId") != target_id or ref.get("resourceId") != data_source.get("resourceId"):
+                    errors.append(f"{cp}: manual workflow may query only its target page resource")
+            else:
+                entity = spec.get("entity")
+                grants = capability_list(manifest, "data", "sprk")
+                allowed = any(isinstance(grant, dict) and grant.get("entity") == entity and "list" in grant.get("operations", []) for grant in grants)
+                if not capability_required(manifest, "data") or not allowed:
+                    errors.append(f"{cp}: native query is not granted by capabilities.data")
+        if any(command.get("command") == "accounting.journal.preview" for command in commands) and not capability_required(manifest, "accounting.journal.propose"):
+            errors.append(f"{wp}: accounting.journal.preview requires capabilities.accounting.journal.propose")
+    return errors
+
+
 def bundle_errors(manifest: dict[str, Any], extensions: dict[str, dict[str, Any]]) -> list[str]:
     errors: list[str] = []
     actions: dict[tuple[str, str], dict[str, Any]] = {}
@@ -268,6 +483,8 @@ def bundle_errors(manifest: dict[str, Any], extensions: dict[str, dict[str, Any]
                 errors.append(f"extensions.{extension_id}: actions require capabilities.actions.run manual")
             for action in definition.get("actions", []):
                 actions[(extension_id, action.get("actionId"))] = action
+        elif ext_type == "workflow":
+            errors.extend(workflow_bundle_errors(extension_id, extension, manifest, extensions))
 
     if configuration_count > 1:
         errors.append("bundle: at most one plugin_configuration extension is allowed")
@@ -294,7 +511,14 @@ def bundle_errors(manifest: dict[str, Any], extensions: dict[str, dict[str, Any]
                         errors.append(f"extensions.{extension_id}.definition.sections.{section.get('sectionId')}: binding target is not granted")
 
     review_targets_by_action: dict[tuple[str, str], str] = {}
+    proposal_mappings_by_action: dict[tuple[str, str], dict[str, Any]] = {}
+    legacy_delta_resources_by_action: dict[tuple[str, str], dict[str, Any]] = {}
     for (extension_id, action_id), action in actions.items():
+        action_extension = extensions[extension_id]
+        mapping_list = action_extension.get("definition", {}).get("fieldMappings", [])
+        mappings = {item.get("mappingId"): item for item in mapping_list if isinstance(item, dict)}
+        if len(mappings) != len(mapping_list):
+            errors.append(f"extensions.{extension_id}.definition.fieldMappings: mappingId values must be unique")
         binding = action.get("binding")
         if isinstance(binding, dict):
             if not capability_required(manifest, "plugin.bindings.manage") or binding.get("targetType") not in capability_list(manifest, "plugin.bindings.manage", "targets"):
@@ -353,6 +577,63 @@ def bundle_errors(manifest: dict[str, Any], extensions: dict[str, dict[str, Any]
                     errors.append(f"extensions.{extension_id}.actions.{action_id}: native master-data header review must omit action.binding so the host can select a company connection")
                 if index != len(action.get("steps", [])) - 1:
                     errors.append(f"extensions.{extension_id}.actions.{action_id}.steps.{step_id}: review.import must be final")
+            elif command == "review.propose":
+                mapping = mappings.get(spec.get("mappingId"))
+                if mapping is None:
+                    errors.append(f"extensions.{extension_id}.actions.{action_id}.steps.{step_id}: field mapping does not exist")
+                    continue
+                proposal_mappings_by_action[(extension_id, action_id)] = mapping
+                target = mapping.get("target", {})
+                grants = [grant.get("target") for grant in capability_list(manifest, "review", "proposals") if isinstance(grant, dict)]
+                if not capability_required(manifest, "review") or target not in grants:
+                    errors.append(f"extensions.{extension_id}.actions.{action_id}.steps.{step_id}: proposal target is not granted exactly")
+                source = mapping.get("source", {})
+                fields = mapping.get("fields", {})
+                if source.get("kind") == "safe_output":
+                    parts = source_parts(source.get("path", ""))
+                    output = safe_outputs.get(parts) if parts else None
+                    if output is None:
+                        errors.append(f"extensions.{extension_id}.actions.{action_id}.steps.{step_id}: proposal source must reference an earlier safe output")
+                    else:
+                        output_fields = output.get("fields", {})
+                        for target_field, mapping_value in fields.items():
+                            source_field = mapping_value.get("from") if isinstance(mapping_value, dict) else None
+                            if source_field is None:
+                                continue
+                            if source_field not in output_fields:
+                                errors.append(f"extensions.{extension_id}.definition.fieldMappings.{mapping.get('mappingId')}.fields.{target_field}: source field is not in the safe output")
+                elif source.get("kind") == "plugin_selection":
+                    source_extension = extensions.get(source.get("extensionId"), {})
+                    source_resource = next((item for item in source_extension.get("resources", []) if item.get("resourceId") == source.get("resourceId") and item.get("kind") == "records"), None)
+                    if source_extension.get("type") != "new_page" or source_resource is None:
+                        errors.append(f"extensions.{extension_id}.definition.fieldMappings.{mapping.get('mappingId')}: plugin_selection source must reference a new-page records resource")
+                    else:
+                        source_fields = {item.get("fieldId") for item in source_resource.get("recordSchema", {}).get("fields", [])}
+                        for target_field, mapping_value in fields.items():
+                            source_field = mapping_value.get("from") if isinstance(mapping_value, dict) else None
+                            if source_field is None:
+                                continue
+                            if source_field not in source_fields:
+                                errors.append(f"extensions.{extension_id}.definition.fieldMappings.{mapping.get('mappingId')}.fields.{target_field}: source field is not in the plugin resource")
+                        writeback = mapping.get("writeback", {})
+                        for field in (writeback.get("targetIdField"), writeback.get("operationField")):
+                            if field and field not in source_fields:
+                                errors.append(f"extensions.{extension_id}.definition.fieldMappings.{mapping.get('mappingId')}.writeback: field {field!r} is not in the source resource")
+                if target.get("kind") == "plugin_resource":
+                    target_extension = extensions.get(target.get("extensionId"), {})
+                    target_resource = next((item for item in target_extension.get("resources", []) if item.get("resourceId") == target.get("resourceId") and item.get("kind") == "records"), None)
+                    if target_resource is None:
+                        errors.append(f"extensions.{extension_id}.definition.fieldMappings.{mapping.get('mappingId')}: plugin_resource target does not exist")
+                    else:
+                        target_fields = {item.get("fieldId") for item in target_resource.get("recordSchema", {}).get("fields", [])}
+                        delta = mapping.get("delta", {})
+                        for field in list(fields) + [delta.get("identityField"), delta.get("inactiveField")]:
+                            if field and field not in target_fields:
+                                errors.append(f"extensions.{extension_id}.definition.fieldMappings.{mapping.get('mappingId')}: target field {field!r} is not in the plugin resource")
+                if index != len(action.get("steps", [])) - 1:
+                    errors.append(f"extensions.{extension_id}.actions.{action_id}.steps.{step_id}: review.propose must be final")
+            elif command == "resource.apply_delta":
+                legacy_delta_resources_by_action[(extension_id, action_id)] = spec.get("resource", {})
 
     for extension_id, extension in extensions.items():
         if extension.get("type") != "existing_page_actions":
@@ -370,6 +651,34 @@ def bundle_errors(manifest: dict[str, Any], extensions: dict[str, dict[str, Any]
             target = review_targets_by_action.get(key)
             if target and REVIEW_SURFACES.get(target) != surface:
                 errors.append(f"extensions.{extension_id}.actions.{contribution.get('actionId')}: {target} review must use surface {REVIEW_SURFACES.get(target)}")
+
+    for extension_id, extension in extensions.items():
+        if extension.get("type") != "new_page":
+            continue
+        definition = extension.get("definition", {})
+        resource_id = definition.get("page", {}).get("dataSource", {}).get("resourceId")
+        contributions = definition.get("pageActions", []) + definition.get("rowActions", [])
+        if any(contribution.get("kind") == "run_action" for contribution in contributions):
+            surfaces = capability_list(manifest, "surfaces.contribute", "surfaces")
+            if not capability_required(manifest, "surfaces.contribute") or "plugin_pages.header.actions" not in surfaces:
+                errors.append(f"extensions.{extension_id}: plugin page run_action requires plugin_pages.header.actions")
+        for contribution in contributions:
+            if contribution.get("kind") != "run_action":
+                continue
+            ref = contribution.get("action", {})
+            key = (ref.get("extensionId"), ref.get("actionId"))
+            if key not in actions:
+                errors.append(f"extensions.{extension_id}.actions.{contribution.get('actionId')}: action reference does not exist")
+                continue
+            mapping = proposal_mappings_by_action.get(key, {})
+            legacy_delta_resource = legacy_delta_resources_by_action.get(key, {})
+            source = mapping.get("source", {})
+            target = mapping.get("target", {})
+            source_matches = source.get("kind") == "plugin_selection" and source.get("extensionId") == extension_id and source.get("resourceId") == resource_id
+            target_matches = source.get("kind") == "safe_output" and target.get("kind") == "plugin_resource" and target.get("extensionId") == extension_id and target.get("resourceId") == resource_id
+            legacy_delta_matches = legacy_delta_resource.get("extensionId") == extension_id and legacy_delta_resource.get("resourceId") == resource_id
+            if not source_matches and not target_matches and not legacy_delta_matches:
+                errors.append(f"extensions.{extension_id}.actions.{contribution.get('actionId')}: run_action mapping must read from or write to this page resource")
     return errors
 
 

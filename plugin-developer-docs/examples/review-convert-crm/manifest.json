@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "review-convert-crm",
+  "name": "Reviewed CRM Conversion",
+  "version": "1.0.0",
+  "publisher": { "id": "demo", "name": "Demo Publisher" },
+  "description": "Converts selected plugin-owned leads into reviewed native customers.",
+  "runtime": { "minAppVersion": "1.0.0" },
+  "capabilities": {
+    "actions.run": { "required": true, "allowedTriggers": ["manual"] },
+    "review": {
+      "required": true,
+      "proposals": [
+        {
+          "target": {
+            "kind": "native",
+            "entity": "customers",
+            "operation": "create_or_link"
+          }
+        },
+        {
+          "target": {
+            "kind": "native",
+            "entity": "invoices",
+            "operation": "create_draft"
+          }
+        }
+      ]
+    },
+    "surfaces.contribute": {
+      "required": true,
+      "surfaces": ["plugin_pages.header.actions"]
+    }
+  },
+  "extensionManifests": [
+    { "extensionId": "crm-page", "path": "extensions/page.json" },
+    { "extensionId": "crm-actions", "path": "extensions/actions.json" }
+  ]
+}

@@ -17,11 +17,18 @@ between them before installation or enablement.
   with `list`, `get`, and `resolve` operations.
 - `review.imports` supports `bank_register`, `accounts`, `customers`, `vendors`,
   and `items`.
+- `review.proposals` contains exact native or plugin-resource target grants.
+  Native combinations are accounts/vendors/items create, customers
+  create-or-link, and invoices create-draft.
 - `surfaces.contribute.surfaces` supports `banking.import.source.actions`,
-  `chart`, `customers`, `vendors`, `items`, and `reports.catalog.entries`.
+  `chart`, `customers`, `vendors`, `items`, `reports.catalog.entries`, and
+  `plugin_pages.header.actions`.
 - `reports.query.sources` is a non-empty exact source ID/version allowlist when
   required. Current source IDs are `gl.lines`, `invoice.lines`, and
   `bank.register`, all at version `1`.
+- `workflows.run`, `records.query`, `records.write`, and
+  `accounting.journal.propose` are strict `{required}` grants. They do not
+  authorize direct native/core writes.
 - Extension reference IDs must be unique.
 
 ## Extension rules
@@ -40,6 +47,8 @@ between them before installation or enablement.
 - A new report may set `definitionVersion: "2"` and retains `report`, `data`,
   `views`, and optional `customization`. It needs exactly one granted semantic
   source, explicit basis metadata, and at least one table view.
+- A new workflow uses `definitionVersion: 1`, manual trigger only, 1–32
+  workflows, at most 32 typed inputs, and 1–16 top-level commands.
 
 ## Cross-extension rules
 
@@ -54,6 +63,12 @@ between them before installation or enablement.
   `target.accountId: "$context.targetId"`; master-data targets require an empty
   `target`. Fields, types, and required mappings must match the selected native
   import schema.
+- `fieldMappings` is optional unless referenced by terminal `review.propose`.
+  Mapping IDs are unique; every mapping has an authorized source, exact granted
+  target, non-empty typed field map, and valid source/target fields. Plugin-page
+  actions must read from or write to that page's records resource.
+- Plugin-resource snapshot sync requires `full_snapshot`, a stable identity,
+  `mark_inactive`, and a Boolean inactive field. It never authorizes deletion.
 - Configuration references must point to an existing connector extension and
   connector resource. Configuration values used by an action must be declared.
 - Every existing-page action needs the surface grant matching its
@@ -69,12 +84,27 @@ between them before installation or enablement.
   needs `reports.catalog.entries` in `surfaces.contribute`.
 - Query fields, operators, measures, groups, sorts, basis, date field, posting
   state, and amount mode must be supported by the resolved source catalog.
+- A manual workflow targets a same-plugin resource-backed `new_page` with a
+  user-accessible records resource and the `plugin_pages.header.actions`
+  surface grant. Plugin-resource queries are restricted to that target.
+- Workflow input defaults must match their declared rich types. Native
+  references require exact data grants; plugin references require
+  `records.query` and a user-accessible same-plugin records resource.
+- Workflow command IDs are globally unique, sources refer only to optional
+  selection, `$item` in a for-each calculation, or an earlier list result.
+  Branches are data-only; stop and journal preview are terminal in their
+  blocks; journal preview requires one earlier review and its proposal grant.
 
 ## Bounds and compatibility
 
 Actions have 1–32 actions per extension and 1–16 steps per action. New-plugin
 authoring uses `connector` plus `api.execute`; compatibility-only direct API
 extensions and page actions are excluded from the normative schema.
+
+Workflows have at most 16 commands per block, 128 commands across the graph,
+branch depth 3, expression depth 6, predicate depth 3, and 500 records per
+collection. Sort has at most 4 keys, distinct 8 fields, aggregate 8 group fields
+and 16 measures, and join 4 key pairs with a unique right side and 500-row output.
 
 New bundles must declare `api.execute` with the smallest method set for every
 external operation.

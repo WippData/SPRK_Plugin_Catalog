@@ -82,14 +82,21 @@ go build ./...
 - [ ] Verify safe outputs contain only declared fields.
 - [ ] For pagination, test first page, continuation, final page, item/page cap,
       and cursor recovery.
-- [ ] For deltas, test add, modify, delete/mark, duplicate identities, and retry
-      idempotency.
+- [ ] For reviewed snapshots, test create, mapped-field update, unchanged,
+      mark-inactive, reactivation, duplicate/blank identities, exclusion,
+      cursor hold, and retry idempotency.
 - [ ] For review imports, verify the selected target's required canonical
       mappings and compatible safe-output types. Confirm review is terminal and
       produces native staging rather than a direct core-record write.
 - [ ] Confirm every review source is an earlier connector
       `$steps.<step>.safeOutput.<collection>`, never `$inputs`, pasted CSV, or a
       local file. Do not invent parser, transform, or validation commands.
+- [ ] For proposals, test exact target grants, source authorization, source and
+      target freshness, literal/from mapping values, one-row drawer routing,
+      multi-row preview routing, accept/link/exclude decisions, provenance,
+      writeback, cancellation, partial failure, and idempotent replay.
+- [ ] Verify every invoice proposal is created as a draft and produces no
+      journal, GL, or reconciliation change.
 - [ ] For bank review, verify the accounts-to-accounts action binding and the
       selected candidate context. For master-data review, verify the action is
       unbound and the host selects only connected inventory for its declared
@@ -126,7 +133,27 @@ go build ./...
 - [ ] Run `python3 -m unittest discover -s tests -p 'test*.py'` and structurally validate
       both report examples before packaging.
 
-## 6. Accounting-impacting tests
+## 6. Manual workflow tests
+
+- [ ] Launch with no selection, one selected row, multiple rows in different
+      input order, and the 500-row boundary. Confirm the persisted resolved
+      context always contains selection IDs, records, and count.
+- [ ] Exercise every declared input type, default, required state, bounded
+      option loading and local search, stale reference, wrong-company reference, account
+      filter, duplicate multi-value, and 100-value boundary.
+- [ ] Test filter, stable sort/null placement, distinct-first, strict numeric
+      aggregates, unique-right join, null join keys, output cap, and `_workflow`
+      source lineage.
+- [ ] Exercise every if/switch branch and explicit stop status/message. Reject
+      side effects inside branches, duplicate global IDs, forward sources,
+      depth 4, more than 16 commands in a block, and more than 128 overall.
+- [ ] Replay identical inputs and differently ordered selection IDs; confirm
+      stable idempotency. Change inputs or selection and confirm a distinct run.
+- [ ] Confirm review remains host-owned and a stale definition, target schema,
+      selection, capability, company, disabled plugin, or unavailable resource
+      fails closed.
+
+## 7. Accounting-impacting tests
 
 - [ ] Every generated posting balances debits and credits.
 - [ ] Posting preserves native account validation, permissions, cutoff and
@@ -140,7 +167,7 @@ go build ./...
 - [ ] Currency, rate, rate date, base amount, and FX treatment remain explicit
       when foreign currency is involved.
 
-## 7. Upgrade and uninstall
+## 8. Upgrade and uninstall
 
 - [ ] Disable the installed plugin before previewing an upgrade.
 - [ ] Keep the same `pluginId` and use a strictly newer version.
@@ -153,7 +180,7 @@ go build ./...
       posted accounting history. Protected conditions must block destructive
       removal and state the reason.
 
-## 8. Release artifact
+## 9. Release artifact
 
 - [ ] Build one deterministic ZIP with `manifest.json` at its root.
 - [ ] Verify every declared extension SHA-256 against the exact packaged bytes.

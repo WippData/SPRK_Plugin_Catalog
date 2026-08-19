@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "renewals-page",
+  "type": "new_page",
+  "name": "Renewals",
+  "version": "1.0.0",
+  "targets": { "companyScoped": true },
+  "resources": [
+    {
+      "resourceId": "renewals",
+      "kind": "records",
+      "schemaVersion": 1,
+      "scope": "company",
+      "access": "user",
+      "recordSchema": {
+        "fields": [
+          { "fieldId": "name", "dataType": "string", "required": true },
+          { "fieldId": "customer_id", "dataType": "string", "required": true },
+          { "fieldId": "owner_id", "dataType": "string", "required": true },
+          { "fieldId": "status", "dataType": "string", "required": true },
+          { "fieldId": "amount", "dataType": "currency", "required": true },
+          { "fieldId": "due_date", "dataType": "date", "required": true }
+        ]
+      }
+    }
+  ],
+  "definition": {
+    "page": {
+      "pageId": "renewals",
+      "pageKind": "list",
+      "title": "Renewals",
+      "route": "renewals",
+      "dataSource": { "kind": "resource", "resourceId": "renewals" }
+    },
+    "fields": [
+      { "fieldId": "name", "label": "Renewal", "dataType": "string", "required": true },
+      { "fieldId": "customer_id", "label": "Customer", "dataType": "string", "required": true },
+      { "fieldId": "owner_id", "label": "Owner", "dataType": "string", "required": true },
+      { "fieldId": "status", "label": "Status", "dataType": "string", "required": true },
+      { "fieldId": "amount", "label": "Amount", "dataType": "currency", "required": true },
+      { "fieldId": "due_date", "label": "Due date", "dataType": "date", "required": true }
+    ],
+    "pageActions": [{ "actionId": "refresh", "enabled": true }],
+    "rowActions": [{ "actionId": "view", "enabled": true }]
+  }
+}

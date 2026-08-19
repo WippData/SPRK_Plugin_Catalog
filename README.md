@@ -62,8 +62,11 @@ and the deterministic catalog check.
 
 Plugin developers should start with
 [`plugin-developer-docs/README.md`](plugin-developer-docs/README.md). Complete
-validated examples cover detail reports, grouped reports, bank review imports,
-and customer review imports. Validate any plugin folder with:
+validated examples cover detail reports, grouped reports, bank and customer
+review imports, CRM-to-native conversions, reviewed provider snapshots, and a
+non-catalog manual workflow with branching, collections, rich inputs, and
+execution context.
+Validate any plugin folder with:
 
 ```bash
 npm run validate:plugin -- path/to/plugin-folder

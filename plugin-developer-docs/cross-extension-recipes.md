@@ -79,19 +79,25 @@ The validator requires exactly this ownership shape: `host_only`, `records`, a
 record schema, and a required string `cursor`. Also declare bounded `maxPages`
 and `maxItems`; pagination is not permission to fetch without limits.
 
-## Fetch and persist provider deltas
+## Fetch and review a provider snapshot into plugin storage
 
-1. An `api.execute` step declares one or more safe-output collections.
-2. Each collection declares a bounded `maxItems` and an explicit field map.
-3. A later `resource.apply_delta` step points `addedSource`,
-   `modifiedSource`, or `removedSource` at an earlier safe-output collection.
-4. `identityField` must be a required string in both the safe output and the
-   destination record schema.
-5. Choose `removedMode: "delete"` or `"mark"`. For `mark`, the destination
-   resource needs the declared Boolean flag field.
+1. An `api.execute` step declares a bounded safe-output collection containing a
+   required provider identity and only the fields needed by the destination.
+2. Add an optional `fieldMappings` entry with `source.kind: "safe_output"` and
+   the earlier `$steps.STEP.safeOutput.COLLECTION` path.
+3. Target a same-plugin records resource with operation `sync_snapshot`.
+4. Declare `delta.mode: "full_snapshot"`, the destination `identityField`,
+   `missing: "mark_inactive"`, and a destination Boolean `inactiveField`.
+5. End the action with `review.propose` and grant its exact target.
 
-At least one delta source is required. Delta sources cannot refer to a future
-step or to an unrestricted provider response.
+The host calculates creates, mapped-field updates, unchanged rows,
+inactivations, and reactivations. The user confirms the one-row drawer or
+multi-row preview before anything is written. See the complete
+[reviewed provider snapshot](examples/review-sync-plugin-records/).
+
+Existing schema-v2 plugins may continue using `resource.apply_delta`; the host
+and public schema retain that command for compatibility. Treat it as a legacy
+path and use reviewed snapshot proposals for new integrations.
 
 ## Fetch and stage bank transactions for review
 
@@ -133,6 +139,23 @@ Failed included rows remain retryable, intentionally excluded rows count toward
 completion, and prerequisite account records do not count as imported rows.
 
 See the complete [customer review import bundle](examples/review-import-customers/).
+
+## Convert selected plugin records
+
+1. Declare a `plugin_selection` field mapping whose source identifies the
+   page's records resource.
+2. Choose an exact native target: customers `create_or_link`,
+   accounts/vendors/items `create`, invoices/bills `create_draft`, or
+   journal entries `post`.
+3. Map target fields from declared source fields or typed literal values.
+4. Optionally declare writeback fields for the resulting target ID and
+   operation.
+5. End a manual action with `review.propose`, grant the exact target, and expose
+   it through page/row `run_action` entries.
+
+One selected row opens the native drawer; multiple selected rows open import
+preview. Invoice proposals always create drafts and never post accounting. See
+the complete [CRM conversion example](examples/review-convert-crm/).
 
 ## Use a configuration value in an action
 

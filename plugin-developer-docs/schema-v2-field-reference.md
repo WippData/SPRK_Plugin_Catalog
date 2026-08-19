@@ -19,7 +19,7 @@ The reference covers fields authors may place in `manifest.json` or an extension
 
 | Type | Allowed values |
 | --- | --- |
-| `ExtensionType` | `new_page`, `expand_page`, `accounting_schedule`, `report`, `connector`, `actions`, `plugin_configuration`, `existing_page_actions` |
+| `ExtensionType` | `new_page`, `expand_page`, `accounting_schedule`, `report`, `connector`, `actions`, `workflow`, `plugin_configuration`, `existing_page_actions` |
 | `DataType` | `string`, `number`, `boolean`, `date`, `datetime`, `currency` |
 | `PluginHTTPMethod` | `GET`, `POST`, `PUT`, `PATCH`, `DELETE` |
 | `PluginBindingSourceCollection` | `accounts`, `customers`, `items`, `vendors` |
@@ -78,7 +78,7 @@ The reference covers fields authors may place in `manifest.json` or an extension
 
 ### `PluginCapabilities`
 
-All eight properties are typed objects. They may be omitted in JSON because missing object fields decode to their zero values, but authors should declare every capability they use.
+All properties are typed objects. They may be omitted in JSON because missing object fields decode to their zero values, but authors should declare every capability they use.
 
 | Field | JSON type | Req. | Purpose |
 | --- | --- | --- | --- |
@@ -87,9 +87,13 @@ All eight properties are typed objects. They may be omitted in JSON because miss
 | `plugin.bindings.manage` | `PluginBindingsManageCapability` | C | Required for declared bindings. |
 | `actions.run` | `PluginActionsRunCapability` | C | Required for an `actions` extension and `run_action`. |
 | `data` | `PluginDataCapability` | C | Required by `data.*` action steps. |
-| `review` | `PluginReviewCapability` | C | Required by `review.import`. |
+| `review` | `PluginReviewCapability` | C | Required by `review.import` and `review.propose`. |
 | `surfaces.contribute` | `PluginSurfacesContributeCapability` | C | Required to contribute actions to an approved core surface. |
 | `reports.query` | `PluginReportsQueryCapability` | C | Required for every report source; exact source/version grants. |
+| `workflows.run` | `{required: boolean}` | C | Required for a workflow extension. |
+| `records.query` | `{required: boolean}` | C | Required for plugin-record queries and plugin-resource reference options. |
+| `records.write` | `{required: boolean}` | C | Reserved for host-supported plugin-record updates; never a native write grant. |
+| `accounting.journal.propose` | `{required: boolean}` | C | Required for journal preview; posting remains host-owned. |
 
 ### Capability submodels
 
@@ -105,10 +109,11 @@ All eight properties are typed objects. They may be omitted in JSON because miss
 |  | `allowedTriggers` | `PluginActionTrigger[]` | C | Must contain `manual` when required; no duplicates or other values. |
 | `PluginDataCapability` | `required` | boolean | R | True when a `data.*` step is used. |
 |  | `sprk` | `PluginDataEntityGrant[]` | C | Non-empty when required. |
-| `PluginReviewCapability` | `required` | boolean | R | True when `review.import` is used. |
-|  | `imports` | `PluginReviewImportGrant[]` | C | Non-empty when required. |
+| `PluginReviewCapability` | `required` | boolean | R | True when `review.import` or `review.propose` is used. |
+|  | `imports` | `PluginReviewImportGrant[]` | C | Exact legacy import grants; at least one import or proposal grant when required. |
+|  | `proposals` | `PluginReviewProposalGrant[]` | C | Exact proposal target grants; at least one import or proposal grant when required. |
 | `PluginSurfacesContributeCapability` | `required` | boolean | R | True when contributing to a core surface. |
-|  | `surfaces` | `PluginSurface[]` | C | `banking.import.source.actions`, `chart`, `customers`, `vendors`, `items`, or `reports.catalog.entries`; non-empty when required and no duplicates. |
+|  | `surfaces` | `PluginSurface[]` | C | Approved native surfaces, `reports.catalog.entries`, or `plugin_pages.header.actions`; non-empty when required and no duplicates. |
 | `PluginReportsQueryCapability` | `required` | boolean | R | True when executing a report. |
 |  | `sources` | `ReportSourceGrant[]` | C | Non-empty exact source allowlist when required. |
 | `ReportSourceGrant` | `sourceId` | string | R | Semantic source ID, never a table name. |
@@ -121,6 +126,7 @@ All eight properties are typed objects. They may be omitted in JSON because miss
 | `PluginDataEntityGrant` | `entity` | string | R | `accounts`, `customers`, `items`, or `vendors`. |
 |  | `operations` | `PluginDataOperation[]` | R | One or more of `list`, `get`, `resolve`; no duplicates per grant. |
 | `PluginReviewImportGrant` | `targetEntity` | string | R | `bank_register`, `accounts`, `customers`, `vendors`, or `items`. |
+| `PluginReviewProposalGrant` | `target` | `ActionProposalTarget` | R | Exact kind/entity/resource/operation grant. |
 
 Every new plugin that executes HTTP must explicitly declare `api.execute` with the smallest method set it needs.
 
@@ -275,8 +281,8 @@ For `page.pageKind: "transaction"`, use `TransactionPageDefinition`; otherwise u
 | `page` | `NewPageConfig` | R | Non-transaction page configuration. |
 | `fields` | `FieldDef[]` | O | Host-rendered fields. |
 | `importTemplate` | `ImportTemplateDefinition` | O | Import template. |
-| `pageActions` | `ActionDef[]` | O | Page-action IDs only. |
-| `rowActions` | `ActionDef[]` | O | Row-action IDs only. |
+| `pageActions` | `ActionDef[]` | O | Standard page actions or `run_action` references. |
+| `rowActions` | `ActionDef[]` | O | Standard row actions or `run_action` references. |
 
 ### `TransactionPageDefinition`
 
@@ -290,8 +296,8 @@ For `page.pageKind: "transaction"`, use `TransactionPageDefinition`; otherwise u
 | `documents` | `TransactionDocumentDef[]` | O | Host documents. |
 | `posting` | `TransactionPostingDef` | O | Accounting-impacting posting declaration. |
 | `importTemplate` | `ImportTemplateDefinition` | O | Import template. |
-| `pageActions` | `ActionDef[]` | O | Page actions. |
-| `rowActions` | `ActionDef[]` | O | Row actions. |
+| `pageActions` | `ActionDef[]` | O | Standard page actions or `run_action` references. |
+| `rowActions` | `ActionDef[]` | O | Standard row actions or `run_action` references. |
 
 ### Transaction line items
 
@@ -674,7 +680,8 @@ actually implemented by the selected source adapter.
 
 | Model | Field | JSON type | Req. | Constraints |
 | --- | --- | --- | --- | --- |
-| `ActionsDefinition` | `actions` | `ActionDefinition[]` | R | 1–32 actions. |
+| `ActionsDefinition` | `fieldMappings` | `ActionFieldMapping[]` | O | 1–32 when present; required only when referenced by `review.propose`. |
+|  | `actions` | `ActionDefinition[]` | R | 1–32 actions. |
 | `ActionDefinition` | `actionId` | string | R | Plugin identifier; unique. |
 |  | `label` | string | R | Non-blank. |
 |  | `trigger` | `PluginActionTrigger` | R | `manual`. |
@@ -686,15 +693,19 @@ actually implemented by the selected source adapter.
 | `ActionInput` | `inputId` | string | R | Plugin identifier; unique. |
 |  | `label` | string | R | Non-blank. |
 |  | `description` | string | O | Description. |
-|  | `type` | string | R | `text`, `number`, `boolean`, `date`, `select`. |
+|  | `type` | string | R | `text`, `textarea`, `number`, `boolean`, `date`, `date_range`, `money`, `select`, `multi_select`, `reference`, `dimension_assignments`. |
 |  | `required` | boolean | O | Required input. |
-|  | `options` | `ActionInputOption[]` | C | Non-empty for select; forbidden otherwise. |
-|  | `defaultValue` | string/number/boolean | O | Must match type; text/date/select use string. Null is invalid. |
+|  | `multiple` | boolean | O | Canonical for multi-select and multi-reference; at most 100 values. |
+|  | `options` | `ActionInputOption[]` | C | Non-empty for select/multi-select; forbidden otherwise. |
+|  | `reference` | `ActionInputReference` | C | Required only for reference; native or same-plugin records. |
+|  | `defaultValue` | JSON | O | Must match the exact runtime shape documented in [Manual Plugin Workflows](manual-plugin-workflows.md). Null is invalid. |
 | `ActionInputOption` | `label` | string | R | Non-blank. |
 |  | `value` | string | R | Non-blank. |
 | `ActionStep` | `id` | string | R | Plugin identifier; unique. |
-|  | `command` | string | R | `data.list`, `data.get`, `data.resolve`, `api.execute`, `review.import`, `resource.apply_delta`. |
+|  | `command` | string | R | `data.list`, `data.get`, `data.resolve`, `api.execute`, `review.import`, `review.propose`, or compatibility-only `resource.apply_delta`. |
 |  | `with` | command-specific object | R | Strictly decoded: unknown fields are rejected. |
+
+`resource.apply_delta` remains valid for existing schema-v2 plugins. New provider synchronization should use reviewed `review.propose` snapshot mappings so users can confirm creates, updates, and inactivations before persistence.
 
 ### Data-step `with`: `ActionDataStep`
 
@@ -731,17 +742,30 @@ actually implemented by the selected source adapter.
 |  | `type` | `DataType` | R | Closed enum. |
 |  | `required` | boolean | O | Required normalized field. |
 
-### Resource-delta `with`: `ActionResourceApplyDeltaStep`
+### Review-proposal definitions and step
 
-| Field | JSON type | Req. | Constraints |
-| --- | --- | --- | --- |
-| `resource` | `ConnectorResourceRef` | R | Bundle records resource with record schema. |
-| `identityField` | string | R | Declared required string in both safe output and target resource. |
-| `addedSource` | string | C | At least one delta source; earlier `$steps.STEP.safeOutput.COLLECTION`. |
-| `modifiedSource` | string | C | Same. |
-| `removedSource` | string | C | Same. |
-| `removedMode` | string | R | `delete` or `mark`. |
-| `removedFlagField` | string | C | Required for `mark`; declared boolean resource field. |
+| Model | Field | JSON type | Req. | Constraints |
+| --- | --- | --- | --- | --- |
+| `ActionFieldMapping` | `mappingId` | string | R | Unique within the actions extension. |
+|  | `source` | `ActionProposalSource` | R | `plugin_selection` resource reference or earlier `safe_output` path. |
+|  | `target` | `ActionProposalTarget` | R | Native create/create-or-link/create-draft or plugin-resource snapshot sync. |
+|  | `fields` | `Record<string, ActionFieldMappingValue>` | R | Non-empty target-to-source/literal mapping. |
+|  | `writeback` | `ActionProposalWriteback` | O | Plugin-selection source only; records target ID and optional result operation. |
+|  | `delta` | `ActionProposalDelta` | C | Required only for plugin-resource `sync_snapshot`. |
+| `ActionFieldMappingValue` | `from` | string | C | Exactly one of `from` or `value`; declared source field ID. |
+|  | `value` | string/number/boolean | C | Exactly one of `from` or `value`; bounded literal. |
+| `ActionReviewProposeStep.with` | `mappingId` | string | R | Referenced field mapping; `review.propose` must be terminal. |
+| `ActionProposalWriteback` | `targetIdField` | string | R | Declared source-resource field receiving the canonical target ID. |
+|  | `operationField` | string | O | Declared source-resource field receiving the result operation. |
+| `ActionProposalDelta` | `mode` | string | R | `full_snapshot`. |
+|  | `identityField` | string | R | Declared target identity field. |
+|  | `missing` | string | R | `mark_inactive`. |
+|  | `inactiveField` | string | R | Declared target boolean field. |
+
+Native target combinations are accounts/vendors/items `create`, customers
+`create_or_link`, invoices/bills `create_draft`, and journal entries `post`. A plugin-resource target uses
+`sync_snapshot` and a same-plugin records resource. See
+[Reviewed Record Proposals](reviewed-record-proposals.md).
 
 ### Review-import `with`: `ActionReviewImportStep`
 

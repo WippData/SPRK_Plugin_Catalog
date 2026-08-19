@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "sync-actions",
+  "type": "actions",
+  "name": "Reviewed Snapshot Sync",
+  "version": "1.0.0",
+  "definition": {
+    "fieldMappings": [
+      {
+        "mappingId": "provider-customer-snapshot",
+        "source": {
+          "kind": "safe_output",
+          "path": "$steps.fetch-customers.safeOutput.customers"
+        },
+        "target": {
+          "kind": "plugin_resource",
+          "extensionId": "customer-page",
+          "resourceId": "provider-customers",
+          "operation": "sync_snapshot"
+        },
+        "fields": {
+          "external_id": { "from": "external-id" },
+          "name": { "from": "display-name" },
+          "email": { "from": "email" }
+        },
+        "delta": {
+          "mode": "full_snapshot",
+          "identityField": "external_id",
+          "missing": "mark_inactive",
+          "inactiveField": "is_inactive"
+        }
+      }
+    ],
+    "actions": [
+      {
+        "actionId": "sync-customers",
+        "label": "Review provider customers",
+        "trigger": "manual",
+        "steps": [
+          {
+            "id": "fetch-customers",
+            "command": "api.execute",
+            "with": {
+              "connector": {
+                "extensionId": "provider",
+                "resourceId": "provider-api",
+                "operationId": "list-customers"
+              },
+              "connectionId": "$context.connectionId",
+              "safeOutputs": [
+                {
+                  "collection": "customers",
+                  "itemsPath": "customers",
+                  "maxItems": 5000,
+                  "fields": {
+                    "external-id": { "path": "id", "type": "string", "required": true },
+                    "display-name": { "path": "name", "type": "string", "required": true },
+                    "email": { "path": "email", "type": "string", "required": false }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "review-snapshot",
+            "command": "review.propose",
+            "with": { "mappingId": "provider-customer-snapshot" }
+          }
+        ]
+      }
+    ]
+  }
+}
