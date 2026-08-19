@@ -81,6 +81,10 @@ data.
   enter their owning native review through `review.import`. Provider data is
   staging evidence, not core or accounting truth merely because a provider
   supplied it.
+- Selected plugin rows and normalized provider rows enter a host-owned drawer
+  or import preview through `review.propose`. The host reloads plugin records,
+  calculates snapshot diffs, validates edits, and performs canonical writes
+  only after an explicit accept/link/exclude decision.
 - Core mutations must use the same schemas, validation, permissions, review
   surfaces, and audit behavior as first-party UI. If the canonical host workflow
   cannot perform the use case safely, the plugin use case is unsupported until

@@ -122,6 +122,208 @@ class PluginFolderValidatorTests(unittest.TestCase):
             self.assertIn("manifest.capabilities.actions.run.scheduled: unknown field", joined)
             self.assertIn("resource: unknown field", joined)
 
+    def test_proposal_requires_typed_mapping_and_exact_target_grant(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("review-convert-crm", temporary)
+
+            def break_manifest(manifest: dict) -> None:
+                manifest["capabilities"]["review"]["proposals"] = [
+                    {
+                        "target": {
+                            "kind": "native",
+                            "entity": "vendors",
+                            "operation": "create",
+                        }
+                    }
+                ]
+
+            def break_actions(extension: dict) -> None:
+                extension["definition"]["fieldMappings"][0]["fields"]["name"] = "lead_name"
+
+            self.update_json(folder / "manifest.json", break_manifest)
+            self.update_json(folder / "extensions" / "actions.json", break_actions)
+            errors = self.validate(folder)
+            joined = "\n".join(errors)
+            self.assertIn("must match exactly one allowed shape", joined)
+
+            self.update_json(
+                folder / "extensions" / "actions.json",
+                lambda extension: extension["definition"]["fieldMappings"][0]["fields"].__setitem__(
+                    "name", {"from": "lead_name"}
+                ),
+            )
+            errors = self.validate(folder)
+            self.assertIn("proposal target is not granted exactly", "\n".join(errors))
+
+    def test_direct_delta_command_remains_valid_for_compatibility(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("review-sync-plugin-records", temporary)
+
+            def replace_review(extension: dict) -> None:
+                extension["definition"]["actions"][0]["steps"][-1] = {
+                    "id": "apply-delta",
+                    "command": "resource.apply_delta",
+                    "with": {
+                        "resource": {
+                            "extensionId": "customer-page",
+                            "resourceId": "provider-customers",
+                        },
+                        "identityField": "external_id",
+                        "addedSource": "$steps.fetch-customers.safeOutput.customers",
+                        "removedMode": "mark",
+                        "removedFlagField": "is_inactive",
+                    },
+                }
+
+            self.update_json(folder / "extensions" / "actions.json", replace_review)
+            errors = self.validate(folder)
+            self.assertEqual(errors, [])
+
+    def test_plugin_page_run_action_requires_surface_grant(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("review-convert-crm", temporary)
+
+            def remove_surface_grant(manifest: dict) -> None:
+                manifest["capabilities"].pop("surfaces.contribute")
+
+            self.update_json(folder / "manifest.json", remove_surface_grant)
+            errors = self.validate(folder)
+            self.assertIn(
+                "plugin page run_action requires plugin_pages.header.actions",
+                "\n".join(errors),
+            )
+
+    def test_crm_example_covers_customer_and_draft_invoice_conversion(self) -> None:
+        actions = json.loads(
+            (EXAMPLES / "review-convert-crm" / "extensions" / "actions.json").read_text()
+        )
+        mappings = {
+            mapping["mappingId"]: mapping
+            for mapping in actions["definition"]["fieldMappings"]
+        }
+        self.assertEqual(
+            mappings["customer-from-lead"]["target"],
+            {"kind": "native", "entity": "customers", "operation": "create_or_link"},
+        )
+        invoice = mappings["draft-invoice-from-deal"]
+        self.assertEqual(invoice["target"]["operation"], "create_draft")
+        self.assertEqual(invoice["fields"]["quantity"], {"value": 1})
+        self.assertEqual(invoice["writeback"]["targetIdField"], "invoice_id")
+
+    def test_schema_accepts_draft_bill_and_posted_journal_targets(self) -> None:
+        schema = json.loads((ROOT / "plugin-developer-docs" / "plugin-manifest.schema.json").read_text())
+        target_schema = schema["$defs"]["ActionProposalTarget"]
+        for target in (
+            {"kind": "native", "entity": "bills", "operation": "create_draft"},
+            {"kind": "native", "entity": "journal_entries", "operation": "post"},
+        ):
+            self.assertEqual(validator.schema_errors(target, target_schema, schema), [])
+
+    def test_manual_workflow_requires_capability_and_rejects_scheduled_trigger(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-renewal-review", temporary)
+            self.update_json(
+                folder / "manifest.json",
+                lambda manifest: manifest["capabilities"].pop("workflows.run"),
+            )
+            errors = self.validate(folder)
+            self.assertIn("requires capabilities.workflows.run.required", "\n".join(errors))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-renewal-review", temporary)
+            self.update_json(
+                folder / "extensions" / "renewal-review-workflow.json",
+                lambda extension: extension["definition"]["workflows"][0].__setitem__(
+                    "trigger", {"type": "scheduled", "cron": "0 0 * * *"}
+                ),
+            )
+            errors = self.validate(folder)
+            joined = "\n".join(errors)
+            self.assertIn("trigger.type: must equal 'manual'", joined)
+            self.assertIn("trigger.cron: unknown field", joined)
+
+    def test_workflow_rejects_forward_sources_and_nested_side_effects(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-renewal-review", temporary)
+
+            def make_source_forward(extension: dict) -> None:
+                commands = extension["definition"]["workflows"][0]["commands"]
+                commands[3]["with"]["source"] = "$steps.review-renewals.records"
+
+            self.update_json(
+                folder / "extensions" / "renewal-review-workflow.json",
+                make_source_forward,
+            )
+            errors = self.validate(folder)
+            self.assertIn("source must reference selection", "\n".join(errors))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-renewal-review", temporary)
+
+            def put_review_in_branch(extension: dict) -> None:
+                branch = extension["definition"]["workflows"][0]["commands"][1]["with"]["then"]
+                branch[0] = {
+                    "id": "nested-review",
+                    "command": "review.records",
+                    "with": {"source": "$steps.query-renewals.records"},
+                }
+
+            self.update_json(
+                folder / "extensions" / "renewal-review-workflow.json",
+                put_review_in_branch,
+            )
+            errors = self.validate(folder)
+            self.assertIn("nested branches may contain data-only commands only", "\n".join(errors))
+
+    def test_workflow_rejects_duplicate_global_ids_and_invalid_rich_default(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-renewal-review", temporary)
+
+            def duplicate_nested_id(extension: dict) -> None:
+                commands = extension["definition"]["workflows"][0]["commands"]
+                commands[1]["with"]["then"][0]["id"] = "query-renewals"
+
+            self.update_json(
+                folder / "extensions" / "renewal-review-workflow.json",
+                duplicate_nested_id,
+            )
+            errors = self.validate(folder)
+            self.assertIn("duplicates another workflow command", "\n".join(errors))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-renewal-review", temporary)
+
+            def break_money_default(extension: dict) -> None:
+                inputs = extension["definition"]["workflows"][0]["inputs"]
+                money = next(item for item in inputs if item["inputId"] == "approval-threshold")
+                money["defaultValue"] = {"amount": "10000", "currency": "usd"}
+
+            self.update_json(
+                folder / "extensions" / "renewal-review-workflow.json",
+                break_money_default,
+            )
+            errors = self.validate(folder)
+            self.assertIn("defaultValue: does not match input type", "\n".join(errors))
+
+    def test_workflow_collection_and_graph_bounds_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-renewal-review", temporary)
+
+            def add_sort_keys(extension: dict) -> None:
+                commands = extension["definition"]["workflows"][0]["commands"]
+                sort_command = next(item for item in commands if item["command"] == "records.sort")
+                sort_command["with"]["keys"] = [
+                    {"field": f"field_{index}", "direction": "asc", "nulls": "last"}
+                    for index in range(5)
+                ]
+
+            self.update_json(
+                folder / "extensions" / "renewal-review-workflow.json",
+                add_sort_keys,
+            )
+            errors = self.validate(folder)
+            self.assertIn("must match exactly one allowed shape", "\n".join(errors))
+
 
 if __name__ == "__main__":
     unittest.main()

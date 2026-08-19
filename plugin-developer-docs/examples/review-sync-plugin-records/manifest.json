@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "review-sync-plugin-records",
+  "name": "Reviewed Provider Snapshot",
+  "version": "1.0.0",
+  "publisher": { "id": "demo", "name": "Demo Publisher" },
+  "description": "Reviews a complete provider snapshot before synchronizing plugin-owned records.",
+  "runtime": { "minAppVersion": "1.0.0" },
+  "capabilities": {
+    "internetAccess": { "required": true, "reason": "Fetch the provider customer snapshot." },
+    "api.execute": { "required": true, "methods": ["GET"] },
+    "actions.run": { "required": true, "allowedTriggers": ["manual"] },
+    "review": {
+      "required": true,
+      "proposals": [
+        {
+          "target": {
+            "kind": "plugin_resource",
+            "extensionId": "customer-page",
+            "resourceId": "provider-customers",
+            "operation": "sync_snapshot"
+          }
+        }
+      ]
+    },
+    "surfaces.contribute": {
+      "required": true,
+      "surfaces": ["plugin_pages.header.actions"]
+    }
+  },
+  "extensionManifests": [
+    { "extensionId": "provider", "path": "extensions/connector.json" },
+    { "extensionId": "customer-page", "path": "extensions/page.json" },
+    { "extensionId": "sync-actions", "path": "extensions/actions.json" }
+  ]
+}

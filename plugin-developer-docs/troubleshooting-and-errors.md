@@ -39,7 +39,7 @@ without understanding the reference that failed.
 | `recordSchema` required | A non-`new_page` records resource omits its schema | Declare 1–128 uniquely named fields with supported data types. |
 | Host-owned field ID | Record schema uses `id`, `recordId`, `companyId`, `pluginId`, `extensionId`, `resourceId`, `schemaVersion`, `createdAt`, or `updatedAt` | Rename the plugin-owned field and map it explicitly. |
 | Pagination state resource invalid | Cursor resource is not declared, not `host_only`, or lacks the required cursor field | Reference a `host_only` records resource with required string `cursor`. |
-| Delta source unavailable | `resource.apply_delta` does not reference an earlier safe output | Use `$steps.<stepId>.safeOutput.<collection>` from a preceding API step. |
+| Proposal source unavailable | `review.propose` mapping does not reference an authorized plugin selection or earlier safe output | Match the plugin-page resource or use `$steps.<stepId>.safeOutput.<collection>` from a preceding API step. |
 | Identity field invalid | Safe output or destination schema lacks a required string identity | Declare the same required string field in both places. |
 
 ## API and connector errors
@@ -59,13 +59,16 @@ without understanding the reference that failed.
 | Error or symptom | Likely cause | Corrective action |
 | --- | --- | --- |
 | Unknown field in `with` | Command-specific object contains a field from another command | Select the `with` schema by `command`; action steps use strict unknown-field rejection. |
-| Step command unsupported | Typo or unimplemented command | Use `data.list`, `data.get`, `data.resolve`, `api.execute`, `review.import`, or `resource.apply_delta`. |
+| Step command unsupported | Typo or unimplemented command | Use `data.list`, `data.get`, `data.resolve`, `api.execute`, `review.import`, `review.propose`, or compatibility-only `resource.apply_delta`. |
 | CSV/file parsing command unsupported | The plugin invented a parser, transform, or validation step | The current runner cannot ingest local files or pasted CSV/XLSX. Fetch provider JSON with `api.execute`, project typed `safeOutputs`, or report the requested primitive as unsupported. |
 | More than 32 actions or 16 steps | Manifest exceeds runner bounds | Split the user workflow into smaller manual actions without creating a hidden scheduler. |
 | `connectionId` invalid | API action does not use the selected host connection | Set it to `$context.connectionId`. |
 | Request binding rejected | Invalid source expression or query/body destination shape | Use a declared `$context`, `$inputs`, `$configuration`, or earlier `$steps` source and the correct `name`/`path` rules. |
 | Review step must be final | Another step follows `review.import` | Move review to the end; native review is the handoff boundary. |
 | Review source rejected | Source points to `$inputs`, a file, or a non-API step | Use exactly `$steps.<earlier-api-step>.safeOutput.<declared-collection>`. |
+| Proposal mapping missing | `review.propose` references an absent mapping ID | Add the optional `fieldMappings` entry or fix the reference. |
+| Proposal grant mismatch | Mapping target differs from `review.proposals[].target` | Grant the exact target kind, entity/resource, and operation. |
+| Snapshot identity invalid | Full snapshot contains blank/duplicate identities or an incomplete page set | Supply a complete bounded snapshot with a stable required identity. |
 | Bank review binding missing | The action cannot obtain the selected account/connection context | Add the required accounts-to-accounts action binding and expose it on `banking.import.source.actions`. |
 | Master-data review binding rejected | A page-header action incorrectly expects a provider candidate | Remove `action.binding`; the host selects a connected company connection for the action's connector. |
 | Bank review fields missing | Required source transaction ID, date, or amount mapping is absent or optional | Map all three from required compatible safe-output fields. |
@@ -89,6 +92,22 @@ Check these separately:
 
 For `expand_page`, `report`, and `accounting_schedule`, verify the intended host
 surface in the minimum SPRK version declared by the plugin.
+
+## Manual workflow errors
+
+| Error or symptom | Likely cause | Corrective action |
+| --- | --- | --- |
+| Workflow is not listed | Missing `workflows.run`, missing `plugin_pages.header.actions`, wrong target, or disabled extension | Grant the exact capabilities and target an enabled same-plugin resource-backed `new_page`. |
+| Input options fail to load | Reference grant/resource/filter is invalid | Native references need exact data list/get grants; plugin references need `records.query` and a user-accessible same-plugin records resource. |
+| Input value rejected | Runtime value or default does not match its rich type | Use the exact value shapes in [Manual Plugin Workflows](manual-plugin-workflows.md); arrays/maps are capped at 100. |
+| Selection rejected | IDs are stale, duplicated, cross-company, wrong-resource, host-only, or over 500 | Refresh the target page and submit only its selected record IDs. Selection may be omitted. |
+| Source must reference an earlier command | `$steps.ID.records` names a future, branch-private, or non-list result | Reorder commands or read the outer control command's collection. |
+| Nested branch is not data-only | A branch contains query, review, loop, update, journal preview, or another side effect | Move the side effect after the outer control command and source `$steps.CONTROL_ID.records`. |
+| Workflow graph limit exceeded | Branch depth, block size, graph size, or collection size exceeds its bound | Split the user-visible manual workflow; do not add a scheduler or hidden runtime. |
+| Aggregate failed | A strict numeric measure encountered null or non-numeric data | Filter/normalize the plugin-owned source before aggregation or choose a valid numeric field. |
+| Join failed | Right-side keys are duplicated or output exceeds 500 | Aggregate/distinct the right side first and narrow inputs. Null keys intentionally never match. |
+| Workflow stopped | `control.stop` selected a completed/cancelled/failed outcome | Display the persisted stop message and correct the controlling input or data. |
+| Journal preview unavailable | Proposal capability, earlier review, account/date/period validation, or terminal placement is missing | Keep journal preview terminal after one review and use the host's canonical preview/confirmation path. |
 
 ## Report query errors
 

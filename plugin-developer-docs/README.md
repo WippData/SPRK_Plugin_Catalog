@@ -15,7 +15,10 @@ extension types and shapes documented here.
 2. Copy the complete example closest to the requested result: the
    [records-page starter](starter-records-page.md),
    [bank review import](examples/review-import-bank/),
-   [customer review import](examples/review-import-customers/), or a
+   [customer review import](examples/review-import-customers/),
+   [CRM conversion](examples/review-convert-crm/),
+   [reviewed provider snapshot](examples/review-sync-plugin-records/),
+   [manual renewal workflow](examples/workflow-renewal-review/), or a
    [native custom report](native-custom-reports.md).
 3. Use the [Typed Field Reference](schema-v2-field-reference.md) for every field and nested type.
 4. Attach [plugin-manifest.schema.json](plugin-manifest.schema.json) to your editor or generator.
@@ -28,10 +31,14 @@ extension types and shapes documented here.
 The documented command and extension enums are closed allowlists. Do not invent
 commands or fields when a requested operation is missing. In particular, the
 current action runner has no file-upload input, pasted-CSV parser, spreadsheet
-parser, free-form JSON transform, validation-script step, loop, branch,
-scheduler, or arbitrary code execution. `review.import` cannot read rows from
+parser, free-form JSON transform, validation-script step, scheduler, or
+arbitrary code execution. Manual `workflow` extensions separately provide
+bounded loops, branches, collection shaping, and structured expressions; see
+[Manual Plugin Workflows](manual-plugin-workflows.md). `review.import` cannot read rows from
 `$inputs`; its `source` must be a declared safe-output collection from an
-earlier connector `api.execute` step.
+earlier connector `api.execute` step. `review.propose` accepts either an
+authorized plugin-record selection or a declared earlier safe output, and still
+requires host review before a canonical write.
 
 If the requested plugin depends on an absent primitive, report that capability
 as unsupported and stop. Adding a new bounded host primitive is a separate
@@ -127,6 +134,7 @@ validates required values, references, and capability coverage.
 | `report` | Host-rendered report with declared source, fields, measures, filters, and views. |
 | `connector` | Secure host-executed external connection with host-owned credentials. |
 | `actions` | Bounded host-executed manual action graph. |
+| `workflow` | Page-bound manual collection computation and host review with bounded control flow. |
 | `plugin_configuration` | The single host-rendered, company-scoped settings surface for a plugin. |
 | `existing_page_actions` | A declared action on an approved existing SPRK surface. |
 
@@ -146,13 +154,17 @@ experience and grant bounded host behavior; request the smallest set needed.
 | `plugin.bindings.manage` | An action manages a mapping to SPRK master data. | `required` and `targets`: `accounts`, `customers`, `items`, or `vendors`. |
 | `actions.run` | The bundle declares an `actions` extension. | `required: true` and `allowedTriggers: ["manual"]`. Scheduled/background actions are not supported. |
 | `data` | An action reads supported native SPRK data. | `required` and `sprk` grants. Entities: `accounts`, `customers`, `items`, `vendors`; operations: `list`, `get`, `resolve`. This is not a direct core-record write grant. |
-| `review` | An action submits an import for host review. | `required` and `imports`; supported targets are `bank_register`, `accounts`, `customers`, `vendors`, and `items`. |
-| `surfaces.contribute` | An extension contributes to an approved core-page surface. | `required` and `surfaces`; supported keys are `banking.import.source.actions`, `chart`, `customers`, `vendors`, `items`, and `reports.catalog.entries`. |
+| `review` | An action submits an import or record proposal for host review. | `required` and at least one of `imports` or exact `proposals` target grants. |
+| `surfaces.contribute` | An extension contributes to an approved host surface. | `required` and `surfaces`; supported keys include native surfaces, `reports.catalog.entries`, and `plugin_pages.header.actions`. |
 | `reports.query` | A report executes against host semantic data. | `required` and an exact `sources` allowlist of supported `sourceId`/`sourceVersion` pairs. |
+| `workflows.run` | The bundle declares a manual `workflow` extension. | `{ "required": true }`. |
+| `records.query` | A workflow queries a same-plugin records resource or exposes plugin-record reference options. | `{ "required": true }`; same-plugin and company scope are still enforced. |
+| `records.write` | Reserved for host-supported plugin-record workflow updates. | It never grants native/core record writes. Manual workflow authoring does not currently expose `records.update`. |
+| `accounting.journal.propose` | A workflow builds a journal preview. | `{ "required": true }`; preview and posting remain host-owned. |
 
 An `actions` extension requires `actions.run`. Individual action steps require
 the matching capability: `data.*` needs `data`, `api.execute` needs
-`api.execute`, `review.import` needs `review`, and a binding needs
+`api.execute`, `review.import` and `review.propose` need `review`, and a binding needs
 `plugin.bindings.manage`. Every existing-page action requires
 `surfaces.contribute` for its exact `targetPageKey`.
 
@@ -167,6 +179,19 @@ The current runtime exposes only `gl.lines@1`, `invoice.lines@1`, and
 `bank.register@1`. It does not yet expose typed parameters, field-option lookup,
 plugin-report exports, charts, or pivots. Treat disabled export controls and
 retained saved views as host UI state, not as additional plugin permissions.
+
+## Manual workflows
+
+Use `actions` for connector calls, safe outputs, imports, and reviewed record
+proposals. Use `workflow` when a user launches a page-bound collection flow
+that needs optional selected rows, rich host-rendered inputs, filtering,
+sorting, distinct/group/aggregate/join operations, bounded branching, or
+terminal record/journal review. Read [Manual Plugin Workflows](manual-plugin-workflows.md)
+and start from the [renewal workflow example](examples/workflow-renewal-review/).
+
+Workflow triggers are manual only. Selected rows are optional execution
+context, not a workflow-definition field. Schedules, background execution,
+arbitrary code, and direct native/accounting mutations remain unsupported.
 
 ## Resources and data ownership
 
@@ -216,12 +241,17 @@ its connector resource; SPRK provides credential configuration or authorization
 through the host UI.
 
 Use `actions` for a manual sequence. Actions have an ID, label,
-`trigger: "manual"`, optional inputs/binding, and bounded host steps. Prefer
+`trigger: "manual"`, optional inputs/binding, optional reusable `fieldMappings`,
+and bounded host steps. Prefer
 `existing_page_actions` with `kind: "run_action"` to expose one on an approved
 page. Keep execution in the bounded action runner.
 
 Declare all new external HTTPS operations through `connector`, including
 operations that do not require credentials.
+
+Use [Reviewed Record Proposals](reviewed-record-proposals.md) when selected
+plugin rows or normalized provider rows should become native or plugin-owned
+records through the one-row drawer or multi-row import-preview workflow.
 
 ## Accounting extensions
 

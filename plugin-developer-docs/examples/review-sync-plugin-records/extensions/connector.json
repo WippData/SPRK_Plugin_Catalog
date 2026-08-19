@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "provider",
+  "type": "connector",
+  "name": "Customer Provider",
+  "version": "1.0.0",
+  "targets": { "companyScoped": true },
+  "permissions": { "network": true, "secrets": true },
+  "resources": [
+    { "resourceId": "provider-api", "kind": "connector", "schemaVersion": 1, "scope": "company" }
+  ],
+  "definition": {
+    "authMethods": [
+      {
+        "authMethodId": "api-key",
+        "type": "api_key",
+        "label": "API key",
+        "credentialFields": [
+          { "key": "api_key", "label": "API key", "kind": "api_key", "required": true }
+        ],
+        "injections": [
+          { "credentialKey": "api_key", "in": "header", "name": "Authorization", "prefix": "Bearer " }
+        ]
+      }
+    ],
+    "api": {
+      "baseUrl": "https://api.example.com",
+      "executionPolicy": {
+        "attemptTimeoutMs": 10000,
+        "totalTimeoutMs": 20000,
+        "retry": { "maxAttempts": 1, "initialBackoffMs": 0, "maxBackoffMs": 0 }
+      },
+      "operations": [
+        {
+          "operationId": "list-customers",
+          "label": "List customers",
+          "method": "GET",
+          "path": "/customers",
+          "semantics": "read",
+          "retrySafe": true,
+          "authMethodIds": ["api-key"]
+        }
+      ]
+    }
+  }
+}

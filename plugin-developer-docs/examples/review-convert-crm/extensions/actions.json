@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "crm-actions",
+  "type": "actions",
+  "name": "CRM Conversion Actions",
+  "version": "1.0.0",
+  "definition": {
+    "fieldMappings": [
+      {
+        "mappingId": "customer-from-lead",
+        "source": {
+          "kind": "plugin_selection",
+          "extensionId": "crm-page",
+          "resourceId": "leads"
+        },
+        "target": {
+          "kind": "native",
+          "entity": "customers",
+          "operation": "create_or_link"
+        },
+        "fields": {
+          "name": { "from": "lead_name" },
+          "company": { "from": "company_name" },
+          "email": { "from": "email" },
+          "phone": { "from": "phone" }
+        },
+        "writeback": {
+          "targetIdField": "customer_id",
+          "operationField": "conversion_operation"
+        }
+      },
+      {
+        "mappingId": "draft-invoice-from-deal",
+        "source": {
+          "kind": "plugin_selection",
+          "extensionId": "crm-page",
+          "resourceId": "leads"
+        },
+        "target": {
+          "kind": "native",
+          "entity": "invoices",
+          "operation": "create_draft"
+        },
+        "fields": {
+          "customerId": { "from": "customer_id" },
+          "memo": { "from": "deal_name" },
+          "lineDescription": { "from": "invoice_description" },
+          "quantity": { "value": 1 },
+          "unitPrice": { "from": "amount" }
+        },
+        "writeback": {
+          "targetIdField": "invoice_id",
+          "operationField": "invoice_conversion_operation"
+        }
+      }
+    ],
+    "actions": [
+      {
+        "actionId": "convert-leads",
+        "label": "Convert leads to customers",
+        "trigger": "manual",
+        "steps": [
+          {
+            "id": "review-customers",
+            "command": "review.propose",
+            "with": { "mappingId": "customer-from-lead" }
+          }
+        ]
+      },
+      {
+        "actionId": "convert-deals",
+        "label": "Convert deals to draft invoices",
+        "trigger": "manual",
+        "steps": [
+          {
+            "id": "review-draft-invoices",
+            "command": "review.propose",
+            "with": { "mappingId": "draft-invoice-from-deal" }
+          }
+        ]
+      }
+    ]
+  }
+}
