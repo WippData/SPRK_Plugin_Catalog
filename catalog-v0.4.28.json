@@ -21,7 +21,7 @@
           "schemaVersion": "2",
           "fileName": "accounting-schedules-1.0.0.zip",
           "assetUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/releases/download/accounting-schedules-v1.0.0/accounting-schedules-1.0.0.zip",
-          "sha256": "8298fb595de51523105ce663c961dabe093d622f4c422458dcfba66a4a6e9c83",
+          "sha256": "c26a69061df1496ec3bf72ee29fb55f3082d8121427b2f495ce5324d438c79df",
           "minAppVersion": "0.4.28",
           "releaseNotes": "Initial official release of Accounting Schedules with equal-month month-end calculations, opening recognition cutoffs, reviewed CSV/XLSX draft imports, and exact-preview journal posting.",
           "publishedAt": "2026-08-28T00:00:00Z"
@@ -45,6 +45,26 @@
           "minAppVersion": "1.0.0",
           "releaseNotes": "Initial official catalog release of Month-End Bank Cleanup with three native bank exception reports.",
           "publishedAt": "2026-08-17T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "payroll-journal-assistant",
+      "name": "Payroll Journal Assistant",
+      "summary": "Imports generic or Gusto general-ledger payroll lines, maps them to SPRK accounts, and posts a reviewed balanced journal.",
+      "free": true,
+      "sourceUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/tree/main/payroll-journal-assistant",
+      "supportUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/issues",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "schemaVersion": "2",
+          "fileName": "payroll-journal-assistant-1.0.0.zip",
+          "assetUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/releases/download/payroll-journal-assistant-v1.0.0/payroll-journal-assistant-1.0.0.zip",
+          "sha256": "e122b9a0e9c170c519ed4eba80555f74e2541cf37258c595f43c9edc0335048e",
+          "minAppVersion": "0.4.29",
+          "releaseNotes": "Initial official release of Payroll Journal Assistant with reusable account mappings, generic and Gusto-shaped CSV/XLSX inputs, host-owned line review, exact balanced journal preview, and canonical posting.",
+          "publishedAt": "2026-08-29T00:00:00Z"
         }
       ]
     },

@@ -23,7 +23,9 @@ class CatalogFeedTests(unittest.TestCase):
         legacy_ids = {plugin["id"] for plugin in legacy_catalog["plugins"]}
 
         self.assertIn("accounting-schedules", app_ids)
+        self.assertIn("payroll-journal-assistant", app_ids)
         self.assertNotIn("accounting-schedules", legacy_ids)
+        self.assertNotIn("payroll-journal-assistant", legacy_ids)
         self.assertEqual(
             legacy_ids,
             {"month-end-bank-cleanup", "revenue-analysis"},
