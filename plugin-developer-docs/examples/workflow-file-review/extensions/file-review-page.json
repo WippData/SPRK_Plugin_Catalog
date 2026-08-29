@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "file-review-page",
+  "type": "new_page",
+  "name": "File Review",
+  "version": "1.0.0",
+  "targets": { "companyScoped": true },
+  "resources": [
+    {
+      "resourceId": "review-runs",
+      "kind": "records",
+      "schemaVersion": 1,
+      "scope": "company",
+      "access": "user",
+      "recordSchema": {
+        "fields": [
+          { "fieldId": "name", "dataType": "string", "required": true },
+          { "fieldId": "status", "dataType": "string", "required": true }
+        ]
+      }
+    }
+  ],
+  "definition": {
+    "page": {
+      "pageId": "file-review",
+      "pageKind": "list",
+      "title": "File Review",
+      "route": "file-review",
+      "dataSource": { "kind": "resource", "resourceId": "review-runs" }
+    },
+    "fields": [
+      { "fieldId": "name", "label": "Review", "dataType": "string", "required": true },
+      { "fieldId": "status", "label": "Status", "dataType": "string", "required": true }
+    ],
+    "pageActions": [{ "actionId": "refresh", "enabled": true }],
+    "rowActions": [{ "actionId": "view", "enabled": true }]
+  }
+}

@@ -18,7 +18,8 @@ extension types and shapes documented here.
    [customer review import](examples/review-import-customers/),
    [CRM conversion](examples/review-convert-crm/),
    [reviewed provider snapshot](examples/review-sync-plugin-records/),
-   [manual renewal workflow](examples/workflow-renewal-review/), or a
+   [manual renewal workflow](examples/workflow-renewal-review/),
+   [depreciation journal-commit workflow](examples/workflow-depreciation-posting/), or a
    [native custom report](native-custom-reports.md).
 3. Use the [Typed Field Reference](schema-v2-field-reference.md) for every field and nested type.
 4. Attach [plugin-manifest.schema.json](plugin-manifest.schema.json) to your editor or generator.
@@ -32,9 +33,12 @@ The documented command and extension enums are closed allowlists. Do not invent
 commands or fields when a requested operation is missing. In particular, the
 current action runner has no file-upload input, pasted-CSV parser, spreadsheet
 parser, free-form JSON transform, validation-script step, scheduler, or
-arbitrary code execution. Manual `workflow` extensions separately provide
-bounded loops, branches, collection shaping, and structured expressions; see
-[Manual Plugin Workflows](manual-plugin-workflows.md). `review.import` cannot read rows from
+arbitrary code execution. `workflow` extensions separately provide
+bounded loops, branches, collection shaping, structured expressions, and the
+host-owned manual `file` input plus `dataset.read`; see
+[Manual Plugin Workflows](manual-plugin-workflows.md). The narrow
+`accounting.journals.committed` lifecycle hook is documented in
+[Journal-Commit Event Workflows](event-driven-workflows.md). `review.import` cannot read rows from
 `$inputs`; its `source` must be a declared safe-output collection from an
 earlier connector `api.execute` step. `review.propose` accepts either an
 authorized plugin-record selection or a declared earlier safe output, and still
@@ -134,7 +138,7 @@ validates required values, references, and capability coverage.
 | `report` | Host-rendered report with declared source, fields, measures, filters, and views. |
 | `connector` | Secure host-executed external connection with host-owned credentials. |
 | `actions` | Bounded host-executed manual action graph. |
-| `workflow` | Page-bound manual collection computation and host review with bounded control flow. |
+| `workflow` | Bounded manual collection/review flows or journal-commit same-plugin writeback. |
 | `plugin_configuration` | The single host-rendered, company-scoped settings surface for a plugin. |
 | `existing_page_actions` | A declared action on an approved existing SPRK surface. |
 
@@ -157,9 +161,11 @@ experience and grant bounded host behavior; request the smallest set needed.
 | `review` | An action submits an import or record proposal for host review. | `required` and at least one of `imports` or exact `proposals` target grants. |
 | `surfaces.contribute` | An extension contributes to an approved host surface. | `required` and `surfaces`; supported keys include native surfaces, `reports.catalog.entries`, and `plugin_pages.header.actions`. |
 | `reports.query` | A report executes against host semantic data. | `required` and an exact `sources` allowlist of supported `sourceId`/`sourceVersion` pairs. |
-| `workflows.run` | The bundle declares a manual `workflow` extension. | `{ "required": true }`. |
+| `workflows.run` | The bundle declares a `workflow` extension. | `{ "required": true }`. |
 | `records.query` | A workflow queries a same-plugin records resource or exposes plugin-record reference options. | `{ "required": true }`; same-plugin and company scope are still enforced. |
-| `records.write` | Reserved for host-supported plugin-record workflow updates. | It never grants native/core record writes. Manual workflow authoring does not currently expose `records.update`. |
+| `records.write` | An event workflow uses `records.update`. | `{ "required": true }`; same-plugin user-accessible records only, never native/core writes. |
+| `files.ingest` | A manual workflow accepts CSV/XLSX as data. | `required: true` plus the exact subset of `formats: ["csv", "xlsx"]`; upload/staging is install-visible and never grants raw file access. |
+| `events.subscribe` | A workflow subscribes to the supported journal-commit event. | `required: true` and `events: ["accounting.journals.committed"]`. |
 | `accounting.schedules.manage` | A public v2 accounting schedule manages company schedules. | `{ "required": true }`; authorization remains company/plugin/extension scoped. |
 | `accounting.journal.propose` | A workflow builds a journal preview or a public v2 accounting schedule proposes recognition journals. | `{ "required": true }`; preview, exact review, and posting remain host-owned, and the grant never permits direct GL writes. |
 
@@ -181,7 +187,7 @@ The current runtime exposes only `gl.lines@1`, `invoice.lines@1`, and
 plugin-report exports, charts, or pivots. Treat disabled export controls and
 retained saved views as host UI state, not as additional plugin permissions.
 
-## Manual workflows
+## Workflows
 
 Use `actions` for connector calls, safe outputs, imports, and reviewed record
 proposals. Use `workflow` when a user launches a page-bound collection flow
@@ -190,9 +196,23 @@ sorting, distinct/group/aggregate/join operations, bounded branching, or
 terminal record/journal review. Read [Manual Plugin Workflows](manual-plugin-workflows.md)
 and start from the [renewal workflow example](examples/workflow-renewal-review/).
 
-Workflow triggers are manual only. Selected rows are optional execution
-context, not a workflow-definition field. Schedules, background execution,
-arbitrary code, and direct native/accounting mutations remain unsupported.
+A manual workflow may accept a user-selected CSV/XLSX file as data. The host
+stages and validates it first; the user clicking Submit starts the run, and
+`dataset.read` exposes at most 500 normalized rows to the bounded workflow.
+The file is not a trigger. Raw bytes remain transient, while submitted
+normalized and derived rows become durable workflow audit data. See the
+[file review example](examples/workflow-file-review/). The existing plugin-page
+CSV/XLSX import remains a separate direct-to-plugin-records capability.
+
+Use the narrow `accounting.journals.committed` trigger only to process journals
+proposed and committed through the same plugin's host-owned workflow. Event
+workflows omit target and inputs and may end with same-plugin `records.update`.
+Read [Journal-Commit Event Workflows](event-driven-workflows.md) and start from
+the [depreciation example](examples/workflow-depreciation-posting/).
+
+Selected rows remain manual execution context, not a workflow-definition field.
+Schedules, general background execution, arbitrary code, direct native/accounting
+mutations, and reversal/void/supersede events remain unsupported.
 
 ## Resources and data ownership
 
@@ -298,6 +318,8 @@ configuration, and review surface. Use these companion documents:
 - [Bundle Installation and Lifecycle](bundle-installation-and-lifecycle.md)
 - [Choose a Plugin Shape](agent-decision-guide.md)
 - [Supported Plugin Patterns](supported-plugin-patterns.md)
+- [Manual Plugin Workflows](manual-plugin-workflows.md)
+- [Journal-Commit Event Workflows](event-driven-workflows.md)
 - [Current Starter Records Page](starter-records-page.md)
 - [Implementation Recipes](cross-extension-recipes.md)
 - [Native Import Reviews](native-import-reviews.md)

@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "depreciation-workflows",
+  "type": "workflow",
+  "name": "Depreciation Workflows",
+  "version": "1.0.0",
+  "targets": { "companyScoped": true },
+  "definition": {
+    "definitionVersion": 1,
+    "workflows": [
+      {
+        "workflowId": "post-depreciation",
+        "name": "Post depreciation",
+        "description": "Review active asset schedules and propose balanced depreciation journals.",
+        "targetExtensionId": "assets-page",
+        "trigger": { "type": "manual" },
+        "inputs": [
+          { "inputId": "posting-date", "label": "Posting date", "type": "date" }
+        ],
+        "commands": [
+          {
+            "id": "query-active-assets",
+            "command": "records.query",
+            "with": {
+              "resource": { "extensionId": "assets-page", "resourceId": "assets" },
+              "limit": 500,
+              "predicate": {
+                "operator": "and",
+                "predicates": [{ "field": "status", "op": "eq", "value": "active" }]
+              }
+            }
+          },
+          {
+            "id": "review-depreciation",
+            "command": "review.records",
+            "with": {
+              "source": "$steps.query-active-assets.records",
+              "title": "Review depreciation journals"
+            }
+          },
+          {
+            "id": "preview-depreciation-journals",
+            "command": "accounting.journal.preview",
+            "with": {
+              "source": "$steps.review-depreciation.records",
+              "title": "Confirm depreciation posting",
+              "entry": {
+                "entryKey": { "kind": "field", "field": "id" },
+                "date": { "kind": "input", "input": "posting-date" },
+                "memo": {
+                  "kind": "operation",
+                  "operator": "concat",
+                  "args": [
+                    { "kind": "value", "value": "Monthly depreciation - " },
+                    { "kind": "field", "field": "name" }
+                  ]
+                },
+                "sourceRecordId": { "kind": "field", "field": "id" },
+                "lines": [
+                  {
+                    "accountId": { "kind": "field", "field": "depreciation_expense_account_id" },
+                    "debit": { "kind": "field", "field": "monthly_depreciation" },
+                    "description": { "kind": "value", "value": "Monthly depreciation" }
+                  },
+                  {
+                    "accountId": { "kind": "field", "field": "accumulated_depreciation_account_id" },
+                    "credit": { "kind": "field", "field": "monthly_depreciation" },
+                    "description": { "kind": "value", "value": "Monthly depreciation" }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "workflowId": "record-depreciation-commit",
+        "name": "Record committed depreciation",
+        "description": "Update asset schedule metadata only after the host commits the exact reviewed journals.",
+        "trigger": {
+          "type": "accounting.journals.committed",
+          "filters": {
+            "sourceExtensionIds": ["depreciation-workflows"],
+            "sourceWorkflowIds": ["post-depreciation"]
+          }
+        },
+        "commands": [
+          {
+            "id": "update-asset-posting-metadata",
+            "command": "records.update",
+            "with": {
+              "resource": { "extensionId": "assets-page", "resourceId": "assets" },
+              "source": "$event.journals",
+              "recordId": { "kind": "field", "field": "sourceRecordId" },
+              "set": {
+                "last_depreciation_date": { "kind": "field", "field": "date" },
+                "last_journal_entry_id": { "kind": "field", "field": "journalEntryId" },
+                "last_posting_hash": { "kind": "field", "field": "sourcePostingId" }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

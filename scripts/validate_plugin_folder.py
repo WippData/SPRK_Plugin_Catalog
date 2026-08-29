@@ -80,11 +80,13 @@ WORKFLOW_DATA_ONLY_COMMANDS = {
     "records.join", "calculate", "control.if", "control.switch", "control.stop",
 }
 WORKFLOW_LIST_COMMANDS = {
-    "records.query", "records.filter", "records.sort", "records.distinct",
+    "dataset.read", "records.query", "records.filter", "records.sort", "records.distinct",
     "records.aggregate", "records.join", "review.records", "control.for_each",
     "control.if", "control.switch", "control.stop", "calculate",
     "accounting.journal.preview",
 }
+WORKFLOW_JOURNAL_COMMITTED_EVENT = "accounting.journals.committed"
+WORKFLOW_EVENT_JOURNALS_SOURCE = "$event.journals"
 
 
 class ValidationFailure(Exception):
@@ -302,6 +304,8 @@ def workflow_input_errors(prefix: str, item: dict[str, Any], manifest: dict[str,
             valid = isinstance(values, list) and len(values) <= 100 and all(isinstance(value, str) and value.strip() for value in values) and len(set(values)) == len(values)
         elif input_type == "dimension_assignments":
             valid = isinstance(default, dict) and len(default) <= 100 and all(isinstance(key, str) and key and isinstance(value, str) and value for key, value in default.items())
+        elif input_type == "file":
+            valid = False
         if not valid:
             errors.append(f"{prefix}.defaultValue: does not match input type")
     if input_type == "reference":
@@ -320,6 +324,20 @@ def workflow_input_errors(prefix: str, item: dict[str, Any], manifest: dict[str,
             resource = workflow_resource(extensions, reference.get("extensionId"), reference.get("resourceId"))
             if resource is None or resource.get("access") == "host_only":
                 errors.append(f"{prefix}.reference: must target a user-accessible same-plugin records resource")
+    if input_type == "file":
+        file_spec = item.get("file", {})
+        requested_formats = set(file_spec.get("formats", []))
+        granted_formats = set(capability_list(manifest, "files.ingest", "formats"))
+        if not capability_required(manifest, "files.ingest") or not requested_formats.issubset(granted_formats):
+            errors.append(f"{prefix}.file: formats require matching capabilities.files.ingest grants")
+        field_ids: set[Any] = set()
+        for field_index, field in enumerate(file_spec.get("fields", [])):
+            field_id = field.get("fieldId")
+            if field_id in field_ids:
+                errors.append(f"{prefix}.file.fields[{field_index}].fieldId: duplicate")
+            if field_id == "id" or (isinstance(field_id, str) and field_id.startswith("_workflow")):
+                errors.append(f"{prefix}.file.fields[{field_index}].fieldId: reserved by the workflow host")
+            field_ids.add(field_id)
     return errors
 
 
@@ -338,7 +356,7 @@ def workflow_expression_input_errors(value: Any, input_ids: set[str], prefix: st
     return errors
 
 
-def validate_workflow_commands(commands: list[dict[str, Any]], prefix: str, input_ids: set[str], state: dict[str, Any], available: set[str], depth: int = 0, data_only: bool = False, for_each: bool = False) -> list[str]:
+def validate_workflow_commands(commands: list[dict[str, Any]], prefix: str, input_ids: set[str], state: dict[str, Any], available: set[str], depth: int = 0, data_only: bool = False, for_each: bool = False, event_triggered: bool = False) -> list[str]:
     errors: list[str] = []
     if depth > 3:
         return [f"{prefix}: exceeds maximum branch depth 3"]
@@ -363,7 +381,9 @@ def validate_workflow_commands(commands: list[dict[str, Any]], prefix: str, inpu
         elif name != "records.query" and isinstance(spec, dict) and "source" in spec:
             sources.append(spec.get("source"))
         for source in sources:
-            if source == "$context.selection.records":
+            if source == WORKFLOW_EVENT_JOURNALS_SOURCE and event_triggered:
+                continue
+            if source == "$context.selection.records" and not event_triggered:
                 continue
             if source == "$item" and for_each:
                 continue
@@ -372,27 +392,46 @@ def validate_workflow_commands(commands: list[dict[str, Any]], prefix: str, inpu
                 errors.append(f"{cp}.with: source must reference selection, the current item, or an earlier list-producing command")
         errors.extend(workflow_expression_input_errors(spec, input_ids, f"{cp}.with"))
         if name == "review.records":
+            if event_triggered:
+                errors.append(f"{cp}: review.records is not allowed in event workflows")
             state["reviews"] += 1
             if state["reviews"] > 1:
                 errors.append(f"{cp}: only one review.records command is supported")
+        if name == "dataset.read":
+            input_id = spec.get("inputId")
+            if event_triggered:
+                errors.append(f"{cp}: dataset.read is supported only in manual workflows")
+            if state.get("input_types", {}).get(input_id) != "file":
+                errors.append(f"{cp}.with.inputId: must reference a declared file input")
         if name == "accounting.journal.preview":
+            if event_triggered:
+                errors.append(f"{cp}: accounting.journal.preview is not allowed in event workflows")
             if state["reviews"] != 1:
                 errors.append(f"{cp}: accounting.journal.preview requires one earlier review.records command")
             if index != len(commands) - 1:
                 errors.append(f"{cp}: accounting.journal.preview must be final")
+        if name == "records.update":
+            if not event_triggered:
+                errors.append(f"{cp}: records.update is supported only in event workflows")
+            if data_only or for_each:
+                errors.append(f"{cp}: records.update is not allowed inside control flow")
+            if index != len(commands) - 1:
+                errors.append(f"{cp}: records.update must be final")
         if name == "control.stop" and index != len(commands) - 1:
             errors.append(f"{cp}: control.stop must be final in its block")
         if name == "control.for_each":
-            errors.extend(validate_workflow_commands(spec.get("commands", []), f"{cp}.with.commands", input_ids, state, set(available), depth + 1, False, True))
+            if event_triggered:
+                errors.append(f"{cp}: control.for_each is not allowed in event workflows")
+            errors.extend(validate_workflow_commands(spec.get("commands", []), f"{cp}.with.commands", input_ids, state, set(available), depth + 1, False, True, event_triggered))
         elif name == "control.if":
-            errors.extend(validate_workflow_commands(spec.get("then", []), f"{cp}.with.then", input_ids, state, set(available), depth + 1, True))
+            errors.extend(validate_workflow_commands(spec.get("then", []), f"{cp}.with.then", input_ids, state, set(available), depth + 1, True, False, event_triggered))
             if spec.get("else"):
-                errors.extend(validate_workflow_commands(spec["else"], f"{cp}.with.else", input_ids, state, set(available), depth + 1, True))
+                errors.extend(validate_workflow_commands(spec["else"], f"{cp}.with.else", input_ids, state, set(available), depth + 1, True, False, event_triggered))
         elif name == "control.switch":
             for case_index, case in enumerate(spec.get("cases", [])):
-                errors.extend(validate_workflow_commands(case.get("commands", []), f"{cp}.with.cases[{case_index}].commands", input_ids, state, set(available), depth + 1, True))
+                errors.extend(validate_workflow_commands(case.get("commands", []), f"{cp}.with.cases[{case_index}].commands", input_ids, state, set(available), depth + 1, True, False, event_triggered))
             if spec.get("default"):
-                errors.extend(validate_workflow_commands(spec["default"], f"{cp}.with.default", input_ids, state, set(available), depth + 1, True))
+                errors.extend(validate_workflow_commands(spec["default"], f"{cp}.with.default", input_ids, state, set(available), depth + 1, True, False, event_triggered))
         if name in WORKFLOW_LIST_COMMANDS:
             available.add(command_id)
     return errors
@@ -403,8 +442,12 @@ def workflow_bundle_errors(extension_id: str, extension: dict[str, Any], manifes
     if not capability_required(manifest, "workflows.run"):
         errors.append(f"extensions.{extension_id}: workflow requires capabilities.workflows.run.required")
     surfaces = capability_list(manifest, "surfaces.contribute", "surfaces")
-    if not capability_required(manifest, "surfaces.contribute") or "plugin_pages.header.actions" not in surfaces:
-        errors.append(f"extensions.{extension_id}: manual workflow requires plugin_pages.header.actions")
+    all_workflow_ids = {
+        workflow.get("workflowId")
+        for candidate in extensions.values()
+        if candidate.get("type") == "workflow"
+        for workflow in candidate.get("definition", {}).get("workflows", [])
+    }
     workflow_ids: set[Any] = set()
     for workflow_index, workflow in enumerate(extension.get("definition", {}).get("workflows", [])):
         wp = f"extensions.{extension_id}.definition.workflows[{workflow_index}]"
@@ -412,24 +455,63 @@ def workflow_bundle_errors(extension_id: str, extension: dict[str, Any], manifes
         if workflow_id in workflow_ids:
             errors.append(f"{wp}.workflowId: duplicate")
         workflow_ids.add(workflow_id)
+        trigger = workflow.get("trigger", {})
+        trigger_type = trigger.get("type")
+        event_triggered = trigger_type == WORKFLOW_JOURNAL_COMMITTED_EVENT
+        if trigger_type == "manual":
+            if not capability_required(manifest, "surfaces.contribute") or "plugin_pages.header.actions" not in surfaces:
+                errors.append(f"{wp}: manual workflow requires plugin_pages.header.actions")
+        elif event_triggered:
+            subscribed = capability_list(manifest, "events.subscribe", "events")
+            if not capability_required(manifest, "events.subscribe") or WORKFLOW_JOURNAL_COMMITTED_EVENT not in subscribed:
+                errors.append(f"{wp}: requires capabilities.events.subscribe for {WORKFLOW_JOURNAL_COMMITTED_EVENT}")
+            if "targetExtensionId" in workflow:
+                errors.append(f"{wp}.targetExtensionId: must be omitted for event workflows")
+            if workflow.get("inputs"):
+                errors.append(f"{wp}.inputs: must be empty for event workflows")
+            filters = trigger.get("filters", {})
+            for source_extension_id in filters.get("sourceExtensionIds", []):
+                if extensions.get(source_extension_id, {}).get("type") != "workflow":
+                    errors.append(f"{wp}.trigger.filters.sourceExtensionIds: must reference same-plugin workflow extensions")
+            for source_workflow_id in filters.get("sourceWorkflowIds", []):
+                if source_workflow_id not in all_workflow_ids:
+                    errors.append(f"{wp}.trigger.filters.sourceWorkflowIds: must reference same-plugin workflows")
         target_id = workflow.get("targetExtensionId")
         target = extensions.get(target_id, {})
         data_source = target.get("definition", {}).get("page", {}).get("dataSource", {})
         target_resource = workflow_resource(extensions, target_id, data_source.get("resourceId"))
-        if target.get("type") != "new_page" or data_source.get("kind") != "resource":
-            errors.append(f"{wp}.targetExtensionId: must reference a same-plugin resource-backed new_page")
-        elif target_resource is None or target_resource.get("access") == "host_only":
-            errors.append(f"{wp}.targetExtensionId: target resource must be user-accessible records")
+        if not event_triggered:
+            if target.get("type") != "new_page" or data_source.get("kind") != "resource":
+                errors.append(f"{wp}.targetExtensionId: must reference a same-plugin resource-backed new_page")
+            elif target_resource is None or target_resource.get("access") == "host_only":
+                errors.append(f"{wp}.targetExtensionId: target resource must be user-accessible records")
         input_ids: set[str] = set()
+        input_types: dict[str, Any] = {}
         for input_index, item in enumerate(workflow.get("inputs", [])):
             ip = f"{wp}.inputs[{input_index}]"
             if item.get("inputId") in input_ids:
                 errors.append(f"{ip}.inputId: duplicate")
             input_ids.add(item.get("inputId"))
+            input_types[item.get("inputId")] = item.get("type")
             errors.extend(workflow_input_errors(ip, item, manifest, extensions))
         commands = workflow.get("commands", [])
-        state: dict[str, Any] = {"seen": set(), "total": 0, "reviews": 0}
-        errors.extend(validate_workflow_commands(commands, f"{wp}.commands", input_ids, state, set()))
+        state: dict[str, Any] = {"seen": set(), "total": 0, "reviews": 0, "input_types": input_types}
+        errors.extend(validate_workflow_commands(commands, f"{wp}.commands", input_ids, state, set(), event_triggered=event_triggered))
+        inputs_by_id = {item.get("inputId"): item for item in workflow.get("inputs", [])}
+        for command_index, command in enumerate(commands):
+            if command.get("command") != "dataset.read":
+                continue
+            cp = f"{wp}.commands[{command_index}]"
+            spec = command.get("with", {})
+            file_input = inputs_by_id.get(spec.get("inputId"), {})
+            if file_input.get("type") != "file":
+                continue
+            if file_input.get("required") is not True:
+                errors.append(f"{cp}.with.inputId: referenced file input must be required")
+            read_limit = spec.get("limit", 500)
+            file_limit = file_input.get("file", {}).get("maxRows", 500)
+            if isinstance(read_limit, int) and isinstance(file_limit, int) and file_limit > read_limit:
+                errors.append(f"{cp}.with.limit: must be at least the referenced file input maxRows")
         for command_index, command in enumerate(commands):
             cp = f"{wp}.commands[{command_index}]"
             if command.get("command") != "records.query":
@@ -440,18 +522,31 @@ def workflow_bundle_errors(extension_id: str, extension: dict[str, Any], manifes
                 resource = workflow_resource(extensions, ref.get("extensionId"), ref.get("resourceId"))
                 if not capability_required(manifest, "records.query"):
                     errors.append(f"{cp}: plugin records query requires capabilities.records.query")
-                if resource is None or resource.get("access") == "host_only":
-                    errors.append(f"{cp}: query must target a user-accessible same-plugin records resource")
-                elif ref.get("extensionId") != target_id or ref.get("resourceId") != data_source.get("resourceId"):
+                if extensions.get(ref.get("extensionId"), {}).get("type") != "new_page" or resource is None or resource.get("access") == "host_only":
+                    errors.append(f"{cp}: query must target a user-accessible same-plugin new_page records resource")
+                elif not event_triggered and (ref.get("extensionId") != target_id or ref.get("resourceId") != data_source.get("resourceId")):
                     errors.append(f"{cp}: manual workflow may query only its target page resource")
             else:
                 entity = spec.get("entity")
+                if event_triggered:
+                    errors.append(f"{cp}: event workflows may query only same-plugin resources")
                 grants = capability_list(manifest, "data", "sprk")
                 allowed = any(isinstance(grant, dict) and grant.get("entity") == entity and "list" in grant.get("operations", []) for grant in grants)
                 if not capability_required(manifest, "data") or not allowed:
                     errors.append(f"{cp}: native query is not granted by capabilities.data")
         if any(command.get("command") == "accounting.journal.preview" for command in commands) and not capability_required(manifest, "accounting.journal.propose"):
             errors.append(f"{wp}: accounting.journal.preview requires capabilities.accounting.journal.propose")
+        for command_index, command in enumerate(commands):
+            if command.get("command") != "records.update":
+                continue
+            cp = f"{wp}.commands[{command_index}]"
+            spec = command.get("with", {})
+            ref = spec.get("resource", {})
+            resource = workflow_resource(extensions, ref.get("extensionId"), ref.get("resourceId"))
+            if not capability_required(manifest, "records.write"):
+                errors.append(f"{cp}: records.update requires capabilities.records.write")
+            if extensions.get(ref.get("extensionId"), {}).get("type") != "new_page" or resource is None or resource.get("access") == "host_only":
+                errors.append(f"{cp}: records.update must target a user-accessible same-plugin new_page records resource")
     return errors
 
 

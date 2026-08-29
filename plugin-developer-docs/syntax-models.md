@@ -104,7 +104,7 @@ resource; a configuration extension needs exactly one configuration resource.
 | `report` | Optional `definitionVersion: "2"`, `report`, `data`, table `views`, and optional `customization`. Parameters and top-level source/query/table shapes are not supported. |
 | `connector` | `authMethods` and `api`; `api` has `baseUrl`, `executionPolicy`, and `operations`. |
 | `actions` | `actions`, each with an ID, label, `trigger: "manual"`, optional binding/inputs, and bounded steps. |
-| `workflow` | `definitionVersion: 1` and `workflows`; each workflow targets a resource-backed plugin page and declares manual trigger, optional typed inputs, and bounded commands. |
+| `workflow` | `definitionVersion: 1` and `workflows`; manual workflows target a resource-backed plugin page, while journal-commit workflows are headless/inputless and may write back only to same-plugin records. |
 | `plugin_configuration` | `title`, optional description, and `sections` of type `fields`, `connection`, or `bindings`. |
 | `existing_page_actions` | `targetPageKey` and one or more `run_action` actions. |
 
@@ -133,19 +133,27 @@ An existing-page action that invokes an action is:
 Older direct API-action shapes are compatibility-only and are intentionally
 excluded from this guide and its JSON Schema.
 
-### Manual workflows
+### Workflows
 
 Workflow inputs use `text`, `textarea`, `number`, `boolean`, `date`,
 `date_range`, `money`, `select` (optionally multiple), `reference`, or
-`dimension_assignments`. Sources are `$context.selection.records`, an earlier
+`dimension_assignments`, plus manual-workflow-only `file`. File inputs declare
+CSV/XLSX formats and a typed schema; the user submits host-staged data before
+`dataset.read` exposes it. Sources are `$context.selection.records`, an earlier
 `$steps.COMMAND_ID.records`, or `$item` inside calculate-only `control.for_each`.
 
-Commands are `records.query`, `records.filter`, `records.sort`,
+Commands are `dataset.read`, `records.query`, `records.filter`, `records.sort`,
 `records.distinct`, `records.aggregate`, `records.join`, `calculate`,
 `control.for_each`, `control.if`, `control.switch`, `control.stop`,
 `review.records`, and `accounting.journal.preview`. See
 [Manual Plugin Workflows](manual-plugin-workflows.md) for exact models,
 structured expressions, context paths, branch restrictions, and graph limits.
+
+The only event trigger is `accounting.journals.committed`. It exposes
+`$event.journals` and permits terminal `records.update` against a user-accessible
+same-plugin records resource. See
+[Journal-Commit Event Workflows](event-driven-workflows.md) for grants, filters,
+payload fields, exact-hash commit semantics, and lifecycle limits.
 
 For a native import action, set the extension's `targetPageKey` to the granted
 surface: `banking.import.source.actions`, `chart`, `customers`, `vendors`, or

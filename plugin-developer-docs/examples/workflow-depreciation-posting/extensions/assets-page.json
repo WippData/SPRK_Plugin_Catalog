@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "assets-page",
+  "type": "new_page",
+  "name": "Fixed Assets",
+  "version": "1.0.0",
+  "targets": { "companyScoped": true },
+  "resources": [
+    {
+      "resourceId": "assets",
+      "kind": "records",
+      "schemaVersion": 1,
+      "scope": "company",
+      "access": "user",
+      "recordSchema": {
+        "fields": [
+          { "fieldId": "name", "dataType": "string", "required": true },
+          { "fieldId": "status", "dataType": "string", "required": true },
+          { "fieldId": "monthly_depreciation", "dataType": "currency", "required": true },
+          { "fieldId": "depreciation_expense_account_id", "dataType": "string", "required": true },
+          { "fieldId": "accumulated_depreciation_account_id", "dataType": "string", "required": true },
+          { "fieldId": "last_depreciation_date", "dataType": "date", "required": false },
+          { "fieldId": "last_journal_entry_id", "dataType": "string", "required": false },
+          { "fieldId": "last_posting_hash", "dataType": "string", "required": false }
+        ]
+      }
+    }
+  ],
+  "definition": {
+    "page": {
+      "pageId": "fixed-assets",
+      "pageKind": "list",
+      "title": "Fixed Assets",
+      "route": "fixed-assets",
+      "dataSource": { "kind": "resource", "resourceId": "assets" }
+    },
+    "fields": [
+      { "fieldId": "name", "label": "Asset", "dataType": "string", "required": true },
+      { "fieldId": "status", "label": "Status", "dataType": "string", "required": true },
+      { "fieldId": "monthly_depreciation", "label": "Monthly depreciation", "dataType": "currency", "required": true },
+      { "fieldId": "depreciation_expense_account_id", "label": "Depreciation expense account ID", "dataType": "string", "required": true },
+      { "fieldId": "accumulated_depreciation_account_id", "label": "Accumulated depreciation account ID", "dataType": "string", "required": true },
+      { "fieldId": "last_depreciation_date", "label": "Last depreciation date", "dataType": "date", "required": false },
+      { "fieldId": "last_journal_entry_id", "label": "Last journal entry ID", "dataType": "string", "required": false },
+      { "fieldId": "last_posting_hash", "label": "Last posting hash", "dataType": "string", "required": false }
+    ],
+    "pageActions": [{ "actionId": "refresh", "enabled": true }],
+    "rowActions": [{ "actionId": "view", "enabled": true }]
+  }
+}

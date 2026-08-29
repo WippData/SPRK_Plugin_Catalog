@@ -1,8 +1,10 @@
 # Manual Plugin Workflows
 
-Use a `workflow` extension when a user should launch a bounded, host-executed collection workflow from a plugin-owned page. Workflows are declarative data; they do not contain JavaScript, SQL, templates, external calls, schedules, or background workers.
+Use a manual `workflow` when a user should launch a bounded, host-executed collection workflow from a plugin-owned page. Workflows are declarative data; they do not contain JavaScript, SQL, templates, external calls, or schedules. For the separate narrow journal-commit lifecycle hook, see [Journal-Commit Event Workflows](event-driven-workflows.md).
 
-The complete runnable example is [workflow-renewal-review](examples/workflow-renewal-review/). The machine-readable authority is [plugin-manifest.schema.json](plugin-manifest.schema.json).
+Complete runnable examples are [workflow-renewal-review](examples/workflow-renewal-review/)
+and [workflow-file-review](examples/workflow-file-review/). The machine-readable
+authority is [plugin-manifest.schema.json](plugin-manifest.schema.json).
 
 ## Envelope and grants
 
@@ -37,11 +39,13 @@ Every manual workflow needs:
 - `surfaces.contribute.required: true` with `plugin_pages.header.actions`;
 - a `targetExtensionId` naming a same-plugin `new_page` backed by a user-accessible `records` resource;
 - `records.query.required: true` when querying that plugin resource;
+- `files.ingest.required: true` with every declared `csv`/`xlsx` format when a
+  workflow accepts a file input;
 - an exact `data.sprk` `list` grant for a native entity query;
 - an exact `data.sprk` `list` and `get` grant for native reference options;
 - `accounting.journal.propose.required: true` only when using `accounting.journal.preview`.
 
-Only `trigger: {"type":"manual"}` is public. Cron, timers, event subscriptions, scheduled triggers, background execution, and legacy opaque `steps` are not valid new-plugin syntax.
+Manual workflows use `trigger: {"type":"manual"}`. Cron, timers, scheduled triggers, arbitrary background execution, and legacy opaque `steps` are not valid new-plugin syntax. The only public event trigger is the separately constrained `accounting.journals.committed` contract.
 
 ## Inputs
 
@@ -60,6 +64,7 @@ The host renders and validates the same input model for actions and workflows.
 | `multi_select` | string array | Compatibility alias; prefer `select` plus `multiple: true`. |
 | `reference` | string or string array | Native or same-plugin record ID; at most 100 unique IDs. |
 | `dimension_assignments` | object | Dimension type ID to dimension value ID; at most 100 assignments. |
+| `file` | staged-dataset reference | Manual workflow only. The host stages a user-selected CSV/XLSX file; the submitted value is `{datasetRef,contentHash}`. |
 
 Every input has `inputId`, `label`, `type`, optional `description`, optional `required`, and an optional type-matched `defaultValue`. Select options are `{value,label}` pairs with unique non-empty values.
 
@@ -103,6 +108,57 @@ A same-plugin reference is:
 ```
 
 The resource must be same-plugin, user-accessible, and declared with a record schema. The current host loads a permission-aware bounded option set of at most 100 rows and filters it locally; it does not expose cursor-paged reference search in this control. A submitted ID is validated again, so loading an option never authorizes a later write.
+
+### File data is not a trigger
+
+A file input belongs only to a manual workflow:
+
+```json
+{
+  "inputId": "source-file",
+  "label": "Data file",
+  "type": "file",
+  "required": true,
+  "file": {
+    "formats": ["csv", "xlsx"],
+    "maxBytes": 5242880,
+    "maxRows": 500,
+    "fields": [
+      { "fieldId": "customer", "label": "Customer", "dataType": "string", "required": true },
+      { "fieldId": "amount", "label": "Amount", "dataType": "currency", "required": true }
+    ]
+  }
+}
+```
+
+`formats` is a non-empty subset of the root `files.ingest.formats` grant.
+`maxBytes` defaults to and cannot exceed 5 MiB; `maxRows` defaults to and cannot
+exceed 500 in this phase. Declare 1–128 fields using `string`, `number`, `boolean`, `date`,
+`datetime`, or `currency`. Field IDs are unique, and `id` is reserved for the
+host's immutable per-row workflow identity.
+
+The user opens the workflow modal, selects a worksheet when needed, and reviews
+the host's header/type validation. Headers match declared field IDs or labels.
+Staging computes a content hash
+and returns an opaque company/plugin/workflow/input/definition-scoped reference.
+It does not start a workflow, call an API, or write records. Clicking the host's
+submit button starts the workflow with exactly:
+
+```json
+{ "datasetRef": "opaque-host-reference", "contentHash": "sha256-hex" }
+```
+
+The host requires an explicit sheet when an XLSX workbook has multiple sheets.
+Raw bytes are transient and never become a workflow value; plugins receive no
+filesystem path, browser `File`, formula execution, macro, external workbook
+link, or arbitrary parser hook. Staged data is definition-digest and content-hash
+pinned and expires after 24 hours unless discarded sooner. Once the user submits
+the workflow, its normalized and derived rows become durable workflow audit data
+and are included in company-file exports; the original file bytes are not retained.
+
+This is additive to the existing plugin-page `pageActions: import` flow. That
+flow continues to parse CSV/XLSX directly into the page's plugin-owned records;
+it does not become a workflow trigger or silently change execution behavior.
 
 ## Execution context and selected rows
 
@@ -157,6 +213,22 @@ Collection commands read one of:
 - `$steps.COMMAND_ID.records` from an earlier list-producing command;
 - `$item` only for `calculate` inside `control.for_each`.
 
+Use `dataset.read` to make a declared file input available as a bounded
+collection:
+
+```json
+{
+  "id": "load-file",
+  "command": "dataset.read",
+  "with": { "inputId": "source-file", "limit": 500 }
+}
+```
+
+Its output is `$steps.load-file.records`. `inputId` must name a required file
+input. The optional limit is 1–500 and must be at least that input's `maxRows`;
+all downstream workflow collections retain the existing 500-record working cap.
+The host rejects an oversized collection; it never silently truncates rows.
+
 Command IDs are globally unique across the entire workflow, including nested branches. A nested output is not a safe unconditional source outside its branch; use `$steps.CONTROL_ID.records`, which is the selected branch's final collection.
 
 Expressions are structured JSON:
@@ -182,6 +254,7 @@ Operators are bounded arithmetic/date operations plus comparison, Boolean, strin
 
 | Command | Purpose and bounds |
 | --- | --- |
+| `dataset.read` | Read 1–500 normalized rows from a declared staged file input. Manual workflows only. |
 | `records.query` | Query the target plugin resource, up to 500 rows, or a granted native entity, up to 200 rows. |
 | `records.filter` | Apply a bounded `and`/`or` predicate tree. |
 | `records.sort` | Stable sort by 1–4 fields with `asc`/`desc` and `first`/`last` null placement. |

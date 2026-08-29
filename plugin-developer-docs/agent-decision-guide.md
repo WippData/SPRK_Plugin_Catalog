@@ -13,6 +13,7 @@ schema-v2 extension set that the current host can execute safely.
 | Connect to an authenticated provider | `connector` | `plugin_configuration`; often `actions` | The host owns credentials and injects them only into declared operations. |
 | Let a user run a bounded integration manually | `actions` | `connector` and `existing_page_actions` with `kind: "run_action"` | Only `trigger: "manual"` exists. No scheduled or background trigger is supported. |
 | Let a user select, shape, group, join, and review page records | `workflow` | A resource-backed `new_page` | Manual only; selected rows are optional context and branches are bounded/data-only. |
+| Update plugin schedule state after its reviewed journals commit | `workflow` | The proposing manual workflow and a user-accessible same-plugin records resource | Only `accounting.journals.committed`; no reversal/void/supersede event yet. |
 | Put a manual action on Banking import | `existing_page_actions` | `actions` | Use `targetPageKey: "banking.import.source.actions"`, `run_action`, and the required accounts-to-accounts action binding. |
 | Put a manual import action on a native master-data page | `existing_page_actions` | `actions` ending in `review.import` | Use `chart`, `customers`, `vendors`, or `items` as both page key and grant; omit action binding so the host selects a company connection. |
 | Collect company settings | `plugin_configuration` | One `configuration` resource | A bundle may contain at most one configuration extension. |
@@ -47,9 +48,13 @@ Start with no grants and add only those required by the declarations:
 | --- | --- |
 | Any `connector` extension | `internetAccess.required: true` with a non-empty reason, plus `api.execute.required: true` and the exact method set |
 | Any `actions` extension | `actions.run.required: true` with `allowedTriggers: ["manual"]` |
-| Any `workflow` extension | `workflows.run.required: true` plus `plugin_pages.header.actions` in `surfaces.contribute` |
+| Any `workflow` extension | `workflows.run.required: true` |
+| Manual workflow | `plugin_pages.header.actions` in `surfaces.contribute` |
+| Manual workflow file input | `files.ingest.required: true` with every declared `csv`/`xlsx` format |
 | Plugin-resource workflow query/reference | `records.query.required: true` |
 | Workflow journal preview | `accounting.journal.propose.required: true` |
+| Journal-commit workflow | `events.subscribe.required: true` with `accounting.journals.committed` |
+| Event `records.update` | `records.write.required: true` |
 | `data.list`, `data.get`, or `data.resolve` | `data.required: true` with the exact entity and operation |
 | An action binding or configuration binding | `plugin.bindings.manage.required: true` with the exact target |
 | `review.import` | `review.required: true` with an `imports` grant matching the step's `targetEntity` |
@@ -65,10 +70,13 @@ Start with no grants and add only those required by the declarations:
   undeclared URL, or run an arbitrary response transform.
 - A plugin writes directly to SPRK accounts, customers, vendors, items, bank
   registers, journal entries, or another core table.
-- A background or scheduled action/workflow is essential. Public schema-v2 actions and workflows are manual.
-- The requirement starts from pasted CSV, a local upload, or a spreadsheet.
-  The current action runner has no file input or parser; `review.import` starts
-  from an earlier connector safe output.
+- A schedule or unsupported background event is essential. The only public
+  event is same-plugin `accounting.journals.committed`; there is no general
+  scheduler or event bus.
+- The requirement needs a local upload in an action or event workflow, pasted
+  CSV, raw file access, or a plugin-supplied parser. Only a manual workflow may
+  declare the host-owned CSV/XLSX `file` input and read its staged rows with
+  `dataset.read`; action `review.import` still starts from connector safe output.
 - Accounting would be posted without the same validation, review, permissions,
   period controls, audit, reversal, and reconciliation behavior as native UI.
 - A requirement needs a surface or command not listed in the normative API docs.

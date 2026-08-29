@@ -30,6 +30,10 @@ between them before installation or enablement.
   `accounting.schedules.manage`, and
   `accounting.journal.propose` are strict `{required}` grants. They do not
   authorize direct native/core writes.
+- `files.ingest` requires a non-empty unique subset of `csv` and `xlsx`; every
+  manual workflow file input format must be covered by that install-visible grant.
+- `events.subscribe` is an exact event allowlist. When required it contains the
+  only supported event, `accounting.journals.committed`, without duplicates.
 - Extension reference IDs must be unique.
 
 ## Extension rules
@@ -48,8 +52,11 @@ between them before installation or enablement.
 - A new report may set `definitionVersion: "2"` and retains `report`, `data`,
   `views`, and optional `customization`. It needs exactly one granted semantic
   source, explicit basis metadata, and at least one table view.
-- A new workflow uses `definitionVersion: 1`, manual trigger only, 1–32
-  workflows, at most 32 typed inputs, and 1–16 top-level commands.
+- A new workflow uses `definitionVersion: 1`, 1–32 workflows, and 1–16
+  top-level commands. Manual workflows allow at most 32 typed inputs. Event
+  workflows use only `accounting.journals.committed` and omit target/inputs.
+- A workflow `file` input is manual-only, declares 1–128 uniquely named typed
+  fields, and stays within 5 MiB and 500 staged rows. Actions cannot use it.
 - A public accounting schedule sets `definitionVersion: "2"`, declares typed
   period-count and opening-recognition sources with `month_end` posting, and
   includes a required string `sourceReference` field. It requires both
@@ -100,6 +107,15 @@ between them before installation or enablement.
   selection, `$item` in a for-each calculation, or an earlier list result.
   Branches are data-only; stop and journal preview are terminal in their
   blocks; journal preview requires one earlier review and its proposal grant.
+- `dataset.read` is manual-only, references a declared file input, and exposes
+  at most 500 normalized rows as `$steps.ID.records`.
+- A journal-commit event workflow needs the exact `events.subscribe` grant.
+  Optional source-extension/workflow filters resolve inside the same plugin.
+  `$event.journals` is available only to that trigger.
+- `records.update` is event-only, final, and requires `records.write`. Its
+  target must be a user-accessible records resource on a same-plugin `new_page`;
+  it never grants native/core writes. An event-only workflow needs no surface
+  grant.
 
 ## Bounds and compatibility
 

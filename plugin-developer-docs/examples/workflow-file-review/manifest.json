@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "workflow-file-review",
+  "name": "Workflow File Review",
+  "version": "1.0.0",
+  "publisher": { "id": "demo", "name": "Demo Publisher" },
+  "description": "Demonstrates a user-selected CSV or XLSX file as manual workflow data.",
+  "runtime": { "minAppVersion": "1.0.0" },
+  "capabilities": {
+    "workflows.run": { "required": true },
+    "files.ingest": { "required": true, "formats": ["csv", "xlsx"] },
+    "surfaces.contribute": {
+      "required": true,
+      "surfaces": ["plugin_pages.header.actions"]
+    }
+  },
+  "extensionManifests": [
+    { "extensionId": "file-review-page", "path": "extensions/file-review-page.json" },
+    { "extensionId": "file-review-workflow", "path": "extensions/file-review-workflow.json" }
+  ]
+}
