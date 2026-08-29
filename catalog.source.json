@@ -26,6 +26,15 @@
       "publishedAt": "2026-08-17T00:00:00Z"
     },
     {
+      "sourceDirectory": "payroll-journal-assistant",
+      "summary": "Imports generic or Gusto general-ledger payroll lines, maps them to SPRK accounts, and posts a reviewed balanced journal.",
+      "free": true,
+      "sourceUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/tree/main/payroll-journal-assistant",
+      "supportUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/issues",
+      "releaseNotes": "Initial official release of Payroll Journal Assistant with reusable account mappings, generic and Gusto-shaped CSV/XLSX inputs, host-owned line review, exact balanced journal preview, and canonical posting.",
+      "publishedAt": "2026-08-29T00:00:00Z"
+    },
+    {
       "sourceDirectory": "revenue-analysis",
       "summary": "Adds invoice-line sales analysis by customer and month, item/SKU, and invoice month without replacing GL income reporting.",
       "free": true,

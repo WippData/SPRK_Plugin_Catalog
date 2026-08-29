@@ -41,6 +41,8 @@ the catalog or current installer supports schema `1.0`.
 - `tests/`: developer-tooling and documentation contract tests.
 - `dist/`: generated release assets; each archive has `manifest.json` at its root.
 - `month-end-bank-cleanup/` and `revenue-analysis/`: cataloged schema `2` sources.
+- `payroll-journal-assistant/`: app-0.4.29 Payroll Journal Assistant source with
+  reviewed generic and Gusto-shaped journal imports.
 - `on-demand-weather/`: preserved, uncataloged schema `2` demonstration source.
 - `employees/`: preserved, uncataloged legacy schema `1.0` source.
 
