@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "workflow-renewal-review",
+  "name": "Renewal Review Workflow",
+  "version": "1.0.0",
+  "publisher": { "id": "demo", "name": "Demo Publisher" },
+  "description": "Demonstrates bounded collection shaping, branching, rich inputs, and host review.",
+  "runtime": { "minAppVersion": "1.0.0" },
+  "capabilities": {
+    "workflows.run": { "required": true },
+    "records.query": { "required": true },
+    "data": {
+      "required": true,
+      "sprk": [
+        { "entity": "accounts", "operations": ["list", "get"] }
+      ]
+    },
+    "surfaces.contribute": {
+      "required": true,
+      "surfaces": ["plugin_pages.header.actions"]
+    }
+  },
+  "extensionManifests": [
+    { "extensionId": "renewals-page", "path": "extensions/renewals-page.json" },
+    { "extensionId": "renewal-review-workflow", "path": "extensions/renewal-review-workflow.json" }
+  ]
+}

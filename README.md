@@ -2,10 +2,16 @@
 
 Official free-plugin catalog for SPRK, published from
 [`WippData/SPRK_Plugin_Catalog`](https://github.com/WippData/SPRK_Plugin_Catalog).
-The app-facing catalog URL is:
+Existing apps continue to use the legacy-safe catalog URL:
 
 ```text
 https://raw.githubusercontent.com/WippData/SPRK_Plugin_Catalog/main/catalog.json
+```
+
+Desktop app 0.4.28 and newer use the versioned feed that includes Accounting Schedules:
+
+```text
+https://raw.githubusercontent.com/WippData/SPRK_Plugin_Catalog/main/catalog-v0.4.28.json
 ```
 
 This repository intentionally has one publisher identity:
@@ -25,7 +31,8 @@ the catalog or current installer supports schema `1.0`.
 ## Repository layout
 
 - `catalog.source.json`: publisher-maintained release metadata and package source directories.
-- `catalog.json`: generated public catalog consumed by SPRK.
+- `catalog.json`: generated legacy-safe public catalog consumed by older SPRK apps.
+- `catalog-v0.4.28.json`: generated app catalog consumed by desktop 0.4.28 and newer.
 - `schemas/catalog.schema.json`: public JSON Schema for `catalog.json`.
 - `scripts/catalog.py`: dependency-free validation and deterministic ZIP builder.
 - `scripts/sprkql.py`: restricted SQL-like authoring helper for native table reports.
@@ -62,8 +69,11 @@ and the deterministic catalog check.
 
 Plugin developers should start with
 [`plugin-developer-docs/README.md`](plugin-developer-docs/README.md). Complete
-validated examples cover detail reports, grouped reports, bank review imports,
-and customer review imports. Validate any plugin folder with:
+validated examples cover detail reports, grouped reports, bank and customer
+review imports, CRM-to-native conversions, reviewed provider snapshots, and a
+non-catalog manual workflow with branching, collections, rich inputs, and
+execution context.
+Validate any plugin folder with:
 
 ```bash
 npm run validate:plugin -- path/to/plugin-folder
@@ -79,8 +89,8 @@ python3 -m unittest discover -s tests -p 'test*.py'
 
 `build` validates each package, verifies every declared extension SHA-256, creates sorted
 ZIPs with fixed timestamps and file modes, computes each asset SHA-256, and regenerates
-`catalog.json`. `check` recreates those outputs in memory and fails if committed catalog or
-ZIP bytes are stale.
+both catalog feeds. `check` recreates those outputs in memory and fails if either committed
+catalog or any ZIP bytes are stale.
 
 ## Publisher workflow
 
@@ -91,11 +101,11 @@ ZIP bytes are stale.
 3. Update the plugin version and its entry in `catalog.source.json`, including release notes
    and `publishedAt`.
 4. Run `python3 scripts/catalog.py build` and `python3 scripts/catalog.py check`.
-5. Review the manifest, generated `catalog.json`, asset filename, and reported SHA-256.
+5. Review the manifest, both generated catalog feeds, asset filename, and reported SHA-256.
 6. Commit the source, catalog, and deterministic ZIP together, then merge to `main`.
 7. Create one GitHub release whose tag is `<plugin-id>-v<version>` and upload only the
    matching `dist/<plugin-id>-<version>.zip`.
-8. Confirm the published asset URL and SHA-256 match `catalog.json` before announcing it.
+8. Confirm the published asset URL and SHA-256 match the applicable catalog feed before announcing it.
 
 Example release commands after the reviewed commit is on `main`:
 

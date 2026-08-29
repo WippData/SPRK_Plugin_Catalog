@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "crm-page",
+  "type": "new_page",
+  "name": "CRM Leads",
+  "version": "1.0.0",
+  "targets": { "companyScoped": true },
+  "resources": [
+    {
+      "resourceId": "leads",
+      "kind": "records",
+      "schemaVersion": 1,
+      "scope": "company",
+      "access": "user",
+      "recordSchema": {
+        "fields": [
+          { "fieldId": "lead_name", "dataType": "string", "required": true },
+          { "fieldId": "company_name", "dataType": "string", "required": false },
+          { "fieldId": "email", "dataType": "string", "required": false },
+          { "fieldId": "phone", "dataType": "string", "required": false },
+          { "fieldId": "customer_id", "dataType": "string", "required": false },
+          { "fieldId": "conversion_operation", "dataType": "string", "required": false },
+          { "fieldId": "deal_name", "dataType": "string", "required": false },
+          { "fieldId": "invoice_description", "dataType": "string", "required": false },
+          { "fieldId": "amount", "dataType": "currency", "required": false },
+          { "fieldId": "invoice_id", "dataType": "string", "required": false },
+          { "fieldId": "invoice_conversion_operation", "dataType": "string", "required": false }
+        ]
+      }
+    }
+  ],
+  "definition": {
+    "page": {
+      "pageId": "crm-leads",
+      "pageKind": "list",
+      "title": "CRM Leads",
+      "route": "crm-leads",
+      "dataSource": { "kind": "resource", "resourceId": "leads" }
+    },
+    "fields": [
+      { "fieldId": "lead_name", "label": "Lead", "dataType": "string", "required": true },
+      { "fieldId": "company_name", "label": "Company", "dataType": "string", "required": false },
+      { "fieldId": "email", "label": "Email", "dataType": "string", "required": false },
+      { "fieldId": "phone", "label": "Phone", "dataType": "string", "required": false },
+      { "fieldId": "customer_id", "label": "Customer ID", "dataType": "string", "required": false },
+      { "fieldId": "conversion_operation", "label": "Conversion", "dataType": "string", "required": false },
+      { "fieldId": "deal_name", "label": "Deal", "dataType": "string", "required": false },
+      { "fieldId": "invoice_description", "label": "Invoice Description", "dataType": "string", "required": false },
+      { "fieldId": "amount", "label": "Amount", "dataType": "currency", "required": false },
+      { "fieldId": "invoice_id", "label": "Invoice ID", "dataType": "string", "required": false },
+      { "fieldId": "invoice_conversion_operation", "label": "Invoice Conversion", "dataType": "string", "required": false }
+    ],
+    "pageActions": [
+      { "actionId": "new", "enabled": true },
+      { "actionId": "refresh", "enabled": true },
+      {
+        "actionId": "convert-selected-leads",
+        "enabled": true,
+        "label": "Convert selected leads",
+        "kind": "run_action",
+        "action": { "extensionId": "crm-actions", "actionId": "convert-leads" }
+      },
+      {
+        "actionId": "convert-selected-deals",
+        "enabled": true,
+        "label": "Convert selected deals",
+        "kind": "run_action",
+        "action": { "extensionId": "crm-actions", "actionId": "convert-deals" }
+      }
+    ],
+    "rowActions": [
+      { "actionId": "view", "enabled": true },
+      { "actionId": "edit", "enabled": true },
+      {
+        "actionId": "convert-lead",
+        "enabled": true,
+        "label": "Convert to customer",
+        "kind": "run_action",
+        "action": { "extensionId": "crm-actions", "actionId": "convert-leads" }
+      },
+      {
+        "actionId": "convert-deal",
+        "enabled": true,
+        "label": "Convert to draft invoice",
+        "kind": "run_action",
+        "action": { "extensionId": "crm-actions", "actionId": "convert-deals" }
+      }
+    ]
+  }
+}

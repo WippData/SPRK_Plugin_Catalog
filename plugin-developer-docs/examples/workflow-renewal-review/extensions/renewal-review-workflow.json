@@ -1,0 +1,228 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "renewal-review-workflow",
+  "type": "workflow",
+  "name": "Renewal Review",
+  "version": "1.0.0",
+  "definition": {
+    "definitionVersion": 1,
+    "workflows": [
+      {
+        "workflowId": "review-renewals",
+        "name": "Review renewals",
+        "description": "Build a deterministic renewal review set from the page records.",
+        "targetExtensionId": "renewals-page",
+        "trigger": { "type": "manual" },
+        "inputs": [
+          { "inputId": "review-note", "label": "Review note", "type": "text", "defaultValue": "Quarterly review" },
+          { "inputId": "analyst-guidance", "label": "Analyst guidance", "type": "textarea" },
+          { "inputId": "minimum-amount", "label": "Minimum amount", "type": "number", "defaultValue": 1000 },
+          { "inputId": "include-paused", "label": "Include paused renewals", "type": "boolean", "defaultValue": false },
+          { "inputId": "as-of-date", "label": "As-of date", "type": "date", "defaultValue": "2026-12-31" },
+          { "inputId": "review-period", "label": "Review period", "type": "date_range", "defaultValue": { "startDate": "2026-01-01", "endDate": "2026-12-31" } },
+          { "inputId": "approval-threshold", "label": "Approval threshold", "type": "money", "defaultValue": { "amount": 10000, "currency": "USD" } },
+          {
+            "inputId": "statuses",
+            "label": "Statuses",
+            "type": "select",
+            "multiple": true,
+            "options": [
+              { "value": "active", "label": "Active" },
+              { "value": "paused", "label": "Paused" }
+            ],
+            "defaultValue": ["active"]
+          },
+          {
+            "inputId": "offset-account",
+            "label": "Offset account",
+            "type": "reference",
+            "reference": {
+              "kind": "native",
+              "entity": "accounts",
+              "accountFilter": { "postingOnly": true }
+            }
+          },
+          {
+            "inputId": "related-renewals",
+            "label": "Related renewals",
+            "type": "reference",
+            "multiple": true,
+            "reference": {
+              "kind": "plugin_resource",
+              "extensionId": "renewals-page",
+              "resourceId": "renewals",
+              "labelField": "name",
+              "multiple": true
+            }
+          },
+          { "inputId": "dimensions", "label": "Dimensions", "type": "dimension_assignments" },
+          {
+            "inputId": "output-mode",
+            "label": "Output mode",
+            "type": "select",
+            "options": [
+              { "value": "detail", "label": "Detail" },
+              { "value": "summary", "label": "Summary" }
+            ],
+            "defaultValue": "detail"
+          }
+        ],
+        "commands": [
+          {
+            "id": "query-renewals",
+            "command": "records.query",
+            "with": {
+              "resource": { "extensionId": "renewals-page", "resourceId": "renewals" },
+              "limit": 500
+            }
+          },
+          {
+            "id": "include-paused",
+            "command": "control.if",
+            "with": {
+              "condition": { "kind": "input", "input": "include-paused" },
+              "then": [
+                {
+                  "id": "mark-all-statuses",
+                  "command": "calculate",
+                  "with": {
+                    "source": "$steps.query-renewals.records",
+                    "calculations": [
+                      { "field": "status_included", "valueType": "boolean", "expression": { "kind": "value", "value": true } }
+                    ]
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "id": "filter-statuses",
+                  "command": "records.filter",
+                  "with": {
+                    "source": "$steps.query-renewals.records",
+                    "predicate": {
+                      "operator": "and",
+                      "predicates": [{ "field": "status", "op": "in", "input": "statuses" }]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "annotate-context",
+            "command": "calculate",
+            "with": {
+              "source": "$steps.include-paused.records",
+              "calculations": [
+                { "field": "selection_count", "valueType": "number", "expression": { "kind": "context", "path": "selection.count" } },
+                { "field": "company_id", "valueType": "string", "expression": { "kind": "context", "path": "companyId" } },
+                { "field": "approval_threshold", "valueType": "number", "expression": { "kind": "input", "input": "approval-threshold", "path": "amount" } }
+              ]
+            }
+          },
+          {
+            "id": "minimum-value",
+            "command": "records.filter",
+            "with": {
+              "source": "$steps.annotate-context.records",
+              "predicate": {
+                "operator": "and",
+                "predicates": [
+                  { "field": "amount", "op": "gte", "input": "minimum-amount" },
+                  { "field": "due_date", "op": "lte", "input": "as-of-date" }
+                ]
+              }
+            }
+          },
+          {
+            "id": "sort-due",
+            "command": "records.sort",
+            "with": {
+              "source": "$steps.minimum-value.records",
+              "keys": [
+                { "field": "due_date", "direction": "asc", "nulls": "last" },
+                { "field": "id", "direction": "asc", "nulls": "last" }
+              ]
+            }
+          },
+          {
+            "id": "one-per-customer",
+            "command": "records.distinct",
+            "with": { "source": "$steps.sort-due.records", "fields": ["customer_id"], "keep": "first" }
+          },
+          {
+            "id": "owner-summary",
+            "command": "records.aggregate",
+            "with": {
+              "source": "$steps.minimum-value.records",
+              "groupBy": ["owner_id"],
+              "measures": [
+                { "op": "count", "as": "renewal_count" },
+                { "field": "amount", "op": "sum", "as": "renewal_amount" }
+              ]
+            }
+          },
+          {
+            "id": "join-owner-summary",
+            "command": "records.join",
+            "with": {
+              "left": "$steps.one-per-customer.records",
+              "right": "$steps.owner-summary.records",
+              "type": "left",
+              "on": [{ "leftField": "owner_id", "rightField": "owner_id" }],
+              "rightPrefix": "owner_",
+              "limit": 500
+            }
+          },
+          {
+            "id": "choose-output",
+            "command": "control.switch",
+            "with": {
+              "expression": { "kind": "input", "input": "output-mode" },
+              "cases": [
+                {
+                  "value": "detail",
+                  "commands": [
+                    {
+                      "id": "detail-output",
+                      "command": "calculate",
+                      "with": {
+                        "source": "$steps.join-owner-summary.records",
+                        "calculations": [{ "field": "output_mode", "valueType": "string", "expression": { "kind": "value", "value": "detail" } }]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "value": "summary",
+                  "commands": [
+                    {
+                      "id": "summary-output",
+                      "command": "calculate",
+                      "with": {
+                        "source": "$steps.join-owner-summary.records",
+                        "calculations": [{ "field": "output_mode", "valueType": "string", "expression": { "kind": "value", "value": "summary" } }]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "default": [
+                {
+                  "id": "unsupported-output",
+                  "command": "control.stop",
+                  "with": { "status": "cancelled", "message": "Choose a supported output mode." }
+                }
+              ]
+            }
+          },
+          {
+            "id": "review-renewals",
+            "command": "review.records",
+            "with": { "source": "$steps.choose-output.records", "title": "Renewals ready for review" }
+          }
+        ]
+      }
+    ]
+  }
+}

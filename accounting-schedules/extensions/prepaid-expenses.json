@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "2", "extensionId": "prepaid-expenses", "type": "accounting_schedule", "name": "Prepaid Expenses", "version": "1.0.0",
+  "description": "Straight-line monthly prepaid expense recognition.", "targets": { "companyScoped": true },
+  "definition": {
+    "definitionVersion": "2",
+    "schedule": { "scheduleId": "prepaid-expenses", "title": "Prepaid Expenses", "description": "Track equal-month prepaid expense recognition at month-end.", "icon": "calendar-clock", "category": "Accounting schedules", "route": "prepaid-expenses" },
+    "templates": [{ "templateId": "straight-line-monthly", "name": "Straight-line monthly", "calculationMethod": "straight_line_monthly", "postingFrequency": "monthly", "roundingPolicy": "final_period", "headerDefaults": { "openingAmortizedAmount": 0 }, "requireApproval": true }],
+    "fields": [
+      { "fieldId": "prepaidName", "label": "Prepaid name", "dataType": "string", "required": true, "ui": { "table": { "visible": true, "width": 220 }, "drawer": { "input": "text", "visible": true } } },
+      { "fieldId": "description", "label": "Description", "dataType": "string", "required": false, "ui": { "table": { "visible": false }, "drawer": { "input": "textarea", "visible": true } } },
+      { "fieldId": "sourceReference", "label": "Source reference", "dataType": "string", "required": true, "ui": { "table": { "visible": true, "width": 160 }, "drawer": { "input": "text", "visible": true } } },
+      { "fieldId": "prepaidAmount", "label": "Prepaid amount", "dataType": "currency", "required": true, "ui": { "table": { "visible": true, "width": 140 }, "drawer": { "input": "number", "visible": true } } },
+      { "fieldId": "serviceStartDate", "label": "Service start date", "dataType": "date", "required": true, "ui": { "table": { "visible": true, "width": 140 }, "drawer": { "input": "date", "visible": true } } },
+      { "fieldId": "periodCount", "label": "Recognition months", "dataType": "number", "required": true, "ui": { "table": { "visible": true, "width": 150 }, "drawer": { "input": "number", "visible": true } } },
+      { "fieldId": "openingAmortizedAmount", "label": "Opening amortized amount", "dataType": "currency", "required": false, "defaultValue": 0, "ui": { "table": { "visible": false }, "drawer": { "input": "number", "visible": true } } },
+      { "fieldId": "openingRecognizedThrough", "label": "Opening recognized through", "dataType": "date", "required": false, "ui": { "table": { "visible": false }, "drawer": { "input": "date", "visible": true } } }
+    ],
+    "accountRoles": [
+      { "roleId": "prepaidAssetAccountId", "label": "Prepaid asset account", "required": true, "accountTypes": ["asset"] },
+      { "roleId": "expenseAccountId", "label": "Expense account", "required": true, "accountTypes": ["expense"] }
+    ],
+    "calculation": { "methods": ["straight_line_monthly"], "defaultMethod": "straight_line_monthly", "amountSource": "prepaidAmount", "startDateSource": "serviceStartDate", "periodCountSource": "periodCount", "openingRecognizedAmountSource": "openingAmortizedAmount", "openingRecognizedThroughSource": "openingRecognizedThrough", "postingConvention": "month_end", "frequency": "monthly", "roundingPolicy": "final_period" },
+    "posting": { "mode": "recognition_only", "dateSource": "postDate", "entryNoPattern": "PE-{{schedule.id}}-{{line.sequence}}", "memoPattern": "Prepaid expense recognition through {{line.periodEnd}}", "idempotencyKeyPattern": "accounting-schedules:prepaid-expenses:{{schedule.id}}:{{line.id}}", "lines": [
+      { "accountRoleId": "expenseAccountId", "description": "Prepaid expense recognition", "debit": "line.amount" },
+      { "accountRoleId": "prepaidAssetAccountId", "description": "Reduce prepaid asset", "credit": "line.amount" }
+    ] }
+  }
+}

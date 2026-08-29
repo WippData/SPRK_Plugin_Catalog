@@ -10,6 +10,7 @@ New plugins should be assembled from these host-rendered building blocks.
 | `connector` | External HTTPS authentication and operations | Pair with configuration; credentials remain host-owned. |
 | `plugin_configuration` | Company settings, connections, and bindings | Exactly one configuration extension and resource per bundle. |
 | `actions` | Bounded manual data/API/review operations | `trigger` is `manual`; declare exact capabilities. |
+| `workflow` | Page-bound manual collection shaping and review | `definitionVersion: 1`, manual trigger, resource-backed target page, bounded data-only branches. |
 | `existing_page_actions` | Expose an action on an approved SPRK surface | Use only `kind: "run_action"`. |
 | `report` | Native table reports and company-shared saved views | Use the executable `data`/table-`views` shape, exact semantic-source grants, declared filters/groups/measures, and bounded customization flags. |
 | `accounting_schedule` | Host-controlled accounting schedule proposals | Requires balanced host posting and full accounting safeguards. |
@@ -36,6 +37,15 @@ Use one `new_page` extension with:
 - host-rendered table/drawer configuration;
 - only declared page and row actions.
 
+## Standard manual collection workflow
+
+Pair a `workflow` extension with a resource-backed `new_page`. Declare
+`workflows.run`, `records.query`, and `plugin_pages.header.actions`; use rich
+host-rendered inputs and optional selected rows; shape records with filter,
+sort, distinct, aggregate, join, calculate, `control.if`, and
+`control.switch`; end with host review when a user decision is required. See
+[Manual Plugin Workflows](manual-plugin-workflows.md).
+
 ## Standard bank-import integration
 
 Use connector safe outputs to normalize provider data, then make
@@ -55,9 +65,21 @@ company connection for the action's connector, then opens that page's normal ret
 commits through the same core APIs as a file import. The plugin never writes a
 core table directly.
 
+## Standard reviewed conversion
+
+Declare optional `fieldMappings` on an actions extension and end the referenced
+manual action with `review.propose`. A `plugin_selection` mapping can convert a
+row or explicit selection from a host-rendered plugin page into native
+customers, draft invoices, accounts, vendors, or items. A `safe_output` mapping
+can synchronize a complete provider snapshot into a plugin records resource.
+One proposal uses the existing drawer; multiple proposals use import preview.
+Every target requires an exact proposal grant, and no write occurs before the
+user confirms.
+
 ## Do not use in new plugins
 
-- `third_party` or opaque `workflow` extensions;
+- `third_party` or legacy opaque workflow extensions; new declarative
+  `workflow` extensions use `definitionVersion: 1` and a manual trigger;
 - `api_calls`, direct `run_api_call`, or static execution modals;
 - singular action `safeOutput` or connector-level discovery aliases;
 - direct extension `permissions.network` or `permissions.secrets`;

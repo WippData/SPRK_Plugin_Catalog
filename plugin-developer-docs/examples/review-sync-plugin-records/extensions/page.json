@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "customer-page",
+  "type": "new_page",
+  "name": "Provider Customers",
+  "version": "1.0.0",
+  "targets": { "companyScoped": true },
+  "resources": [
+    {
+      "resourceId": "provider-customers",
+      "kind": "records",
+      "schemaVersion": 1,
+      "scope": "company",
+      "access": "user",
+      "recordSchema": {
+        "fields": [
+          { "fieldId": "external_id", "dataType": "string", "required": true },
+          { "fieldId": "name", "dataType": "string", "required": true },
+          { "fieldId": "email", "dataType": "string", "required": false },
+          { "fieldId": "is_inactive", "dataType": "boolean", "required": false }
+        ]
+      }
+    }
+  ],
+  "definition": {
+    "page": {
+      "pageId": "provider-customers",
+      "pageKind": "list",
+      "title": "Provider Customers",
+      "route": "provider-customers",
+      "dataSource": { "kind": "resource", "resourceId": "provider-customers" }
+    },
+    "fields": [
+      { "fieldId": "external_id", "label": "External ID", "dataType": "string", "required": true },
+      { "fieldId": "name", "label": "Name", "dataType": "string", "required": true },
+      { "fieldId": "email", "label": "Email", "dataType": "string", "required": false },
+      { "fieldId": "is_inactive", "label": "Inactive", "dataType": "boolean", "required": false }
+    ],
+    "pageActions": [
+      { "actionId": "refresh", "enabled": true },
+      {
+        "actionId": "sync-provider-customers",
+        "enabled": true,
+        "label": "Sync provider customers",
+        "kind": "run_action",
+        "action": { "extensionId": "sync-actions", "actionId": "sync-customers" }
+      }
+    ],
+    "rowActions": [
+      { "actionId": "view", "enabled": true },
+      { "actionId": "edit", "enabled": true }
+    ]
+  }
+}

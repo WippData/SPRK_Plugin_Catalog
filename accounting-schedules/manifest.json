@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "accounting-schedules",
+  "name": "Accounting Schedules",
+  "version": "1.0.0",
+  "publisher": { "id": "sprk", "name": "SPRK" },
+  "description": "Manage fixed asset, prepaid expense, and deferred revenue recognition schedules.",
+  "runtime": { "minAppVersion": "0.4.28", "maxAppVersion": "0.999.999" },
+  "capabilities": {
+    "accounting.schedules.manage": { "required": true },
+    "accounting.journal.propose": { "required": true }
+  },
+  "extensionManifests": [
+    { "extensionId": "fixed-assets", "path": "extensions/fixed-assets.json" },
+    { "extensionId": "prepaid-expenses", "path": "extensions/prepaid-expenses.json" },
+    { "extensionId": "deferred-revenue", "path": "extensions/deferred-revenue.json" }
+  ]
+}

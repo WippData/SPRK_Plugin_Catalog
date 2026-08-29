@@ -1,0 +1,2 @@
+prepaidName,description,sourceReference,prepaidAmount,serviceStartDate,periodCount,openingAmortizedAmount,openingRecognizedThrough,prepaidAssetAccountId,expenseAccountId
+Annual insurance,Example only,BILL-1002,1200.00,2026-01-01,12,0.00,,1400,6200

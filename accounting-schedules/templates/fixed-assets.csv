@@ -1,0 +1,2 @@
+assetName,description,sourceReference,costBasis,salvageValue,inServiceDate,usefulLifeMonths,openingAccumulatedDepreciation,openingRecognizedThrough,fixedAssetAccountId,depreciationExpenseAccountId,accumulatedDepreciationAccountId
+Office equipment,Example only,BILL-1001,12000.00,0.00,2026-01-15,36,0.00,,1500,6100,1590
