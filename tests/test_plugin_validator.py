@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "plugin-developer-docs" / "plugin-manifest.schema.json"
 EXAMPLES = ROOT / "plugin-developer-docs" / "examples"
 ACCOUNTING_SCHEDULES = ROOT / "accounting-schedules"
+PAYROLL_JOURNAL_ASSISTANT = ROOT / "payroll-journal-assistant"
 SPEC = importlib.util.spec_from_file_location(
     "validate_plugin_folder", ROOT / "scripts" / "validate_plugin_folder.py"
 )
@@ -398,6 +399,156 @@ class PluginFolderValidatorTests(unittest.TestCase):
                     account_value = rows[1][rows[0].index(role["roleId"])]
                     self.assertTrue(account_value)
                     self.assertNotEqual(account_value, "account-id")
+
+    def test_payroll_journal_assistant_bundle_is_valid_and_patch_gated(self) -> None:
+        self.assertEqual(self.validate(PAYROLL_JOURNAL_ASSISTANT), [])
+        manifest = json.loads(
+            (PAYROLL_JOURNAL_ASSISTANT / "manifest.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(manifest["runtime"]["minAppVersion"], "0.4.29")
+        self.assertEqual(
+            {item["extensionId"] for item in manifest["extensionManifests"]},
+            {"payroll-account-mappings", "payroll-journal-workflows"},
+        )
+
+    def test_payroll_templates_match_declared_file_headers(self) -> None:
+        extension = json.loads(
+            (
+                PAYROLL_JOURNAL_ASSISTANT
+                / "extensions"
+                / "payroll-journal-workflows.json"
+            ).read_text(encoding="utf-8")
+        )
+        workflow = extension["definition"]["workflows"][0]
+        file_input = next(item for item in workflow["inputs"] if item["type"] == "file")
+        fields = file_input["file"]["fields"]
+
+        def normalized(value: str) -> str:
+            return "".join(character for character in value.strip().lower() if character.isalnum())
+
+        owners: dict[str, set[str]] = {}
+        for field in fields:
+            for candidate in (field["fieldId"], field["label"], *field.get("aliases", [])):
+                owners.setdefault(normalized(candidate), set()).add(field["fieldId"])
+
+        for template_name in (
+            "generic-payroll-journal-lines.csv",
+            "gusto-general-ledger-lines.csv",
+        ):
+            with (
+                PAYROLL_JOURNAL_ASSISTANT / "templates" / template_name
+            ).open(newline="", encoding="utf-8") as template_file:
+                headers = next(csv.reader(template_file))
+            with self.subTest(template=template_name):
+                for header in headers:
+                    self.assertEqual(owners.get(normalized(header)), {next(iter(owners[normalized(header)]))})
+
+        aliases = {
+            field["fieldId"]: field.get("aliases", [])
+            for field in fields
+        }
+        self.assertEqual(aliases["source_type"], ["Account Type"])
+        self.assertEqual(aliases["source_description"], ["Account Description"])
+
+        with (
+            PAYROLL_JOURNAL_ASSISTANT
+            / "templates"
+            / "gusto-general-ledger-lines.csv"
+        ).open(newline="", encoding="utf-8") as template_file:
+            rows = list(csv.DictReader(template_file))
+        self.assertEqual(
+            {row["Account Type"] for row in rows},
+            {"RegularWages", "EmployerTax", "DebitNetPay", "DebitTax"},
+        )
+        self.assertEqual(
+            sum(float(row["Debit"] or 0) for row in rows),
+            sum(float(row["Credit"] or 0) for row in rows),
+        )
+
+    def test_payroll_file_aliases_fail_closed_on_ambiguous_headers(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary) / "payroll-journal-assistant"
+            shutil.copytree(PAYROLL_JOURNAL_ASSISTANT, folder)
+
+            def collide_alias(extension: dict) -> None:
+                fields = extension["definition"]["workflows"][0]["inputs"][0]["file"]["fields"]
+                next(field for field in fields if field["fieldId"] == "department")["aliases"] = ["Job"]
+
+            self.update_json(
+                folder / "extensions" / "payroll-journal-workflows.json",
+                collide_alias,
+            )
+            self.assertIn("header name conflicts with field job", "\n".join(self.validate(folder)))
+
+    def test_grouped_journal_line_accepts_one_or_both_sides_but_not_neither(self) -> None:
+        for removed, valid in ((["credit"], True), ([], True), (["debit", "credit"], False)):
+            with self.subTest(removed=removed), tempfile.TemporaryDirectory() as temporary:
+                folder = Path(temporary) / "payroll-journal-assistant"
+                shutil.copytree(PAYROLL_JOURNAL_ASSISTANT, folder)
+
+                def remove_sides(extension: dict) -> None:
+                    preview = extension["definition"]["workflows"][0]["commands"][-1]
+                    line = preview["with"]["entry"]["line"]
+                    for side in removed:
+                        line.pop(side)
+
+                self.update_json(
+                    folder / "extensions" / "payroll-journal-workflows.json",
+                    remove_sides,
+                )
+                errors = self.validate(folder)
+                if valid:
+                    self.assertEqual(errors, [])
+                else:
+                    self.assertIn("must match exactly one allowed shape", "\n".join(errors))
+
+    def test_payroll_deduplication_uses_one_stable_run_identity(self) -> None:
+        extension = json.loads(
+            (
+                PAYROLL_JOURNAL_ASSISTANT
+                / "extensions"
+                / "payroll-journal-workflows.json"
+            ).read_text(encoding="utf-8")
+        )
+        workflow = extension["definition"]["workflows"][0]
+        preview = workflow["commands"][-1]["with"]
+        self.assertEqual(preview["shape"], "line_records")
+        self.assertEqual(preview["deduplication"], {
+            "mode": "source_record",
+            "onChange": "correction_required",
+        })
+        self.assertEqual(preview["entry"]["entryKey"], preview["entry"]["sourceRecordId"])
+        self.assertEqual(preview["entry"]["sourceRecordId"], {
+            "kind": "field",
+            "field": "payroll_source_id",
+        })
+
+    def test_fixed_entry_shape_accepts_explicit_source_deduplication(self) -> None:
+        schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+        expression = {"kind": "value", "value": "fixed"}
+        preview = {
+            "source": "$steps.review.records",
+            "deduplication": {
+                "mode": "source_record",
+                "onChange": "correction_required",
+            },
+            "entry": {
+                "date": {"kind": "value", "value": "2026-08-29"},
+                "sourceRecordId": expression,
+                "lines": [
+                    {"accountId": expression, "debit": {"kind": "value", "value": 1}},
+                    {"accountId": expression, "credit": {"kind": "value", "value": 1}},
+                ],
+            },
+        }
+        self.assertEqual(
+            validator.schema_errors(
+                preview,
+                schema["$defs"]["WorkflowJournalPreviewWith"],
+                schema,
+            ),
+            [],
+        )
 
 
 if __name__ == "__main__":

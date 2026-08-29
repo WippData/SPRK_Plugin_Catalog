@@ -32,9 +32,10 @@ The documented command and extension enums are closed allowlists. Do not invent
 commands or fields when a requested operation is missing. In particular, the
 current action runner has no file-upload input, pasted-CSV parser, spreadsheet
 parser, free-form JSON transform, validation-script step, scheduler, or
-arbitrary code execution. Manual `workflow` extensions separately provide
-bounded loops, branches, collection shaping, and structured expressions; see
-[Manual Plugin Workflows](manual-plugin-workflows.md). `review.import` cannot read rows from
+arbitrary code execution. Manual `workflow` extensions separately provide a
+bounded, declared CSV/XLSX file input plus loops, branches, collection shaping,
+and structured expressions; see [Manual Plugin
+Workflows](manual-plugin-workflows.md). `review.import` cannot read rows from
 `$inputs`; its `source` must be a declared safe-output collection from an
 earlier connector `api.execute` step. `review.propose` accepts either an
 authorized plugin-record selection or a declared earlier safe output, and still
@@ -158,6 +159,7 @@ experience and grant bounded host behavior; request the smallest set needed.
 | `surfaces.contribute` | An extension contributes to an approved host surface. | `required` and `surfaces`; supported keys include native surfaces, `reports.catalog.entries`, and `plugin_pages.header.actions`. |
 | `reports.query` | A report executes against host semantic data. | `required` and an exact `sources` allowlist of supported `sourceId`/`sourceVersion` pairs. |
 | `workflows.run` | The bundle declares a manual `workflow` extension. | `{ "required": true }`. |
+| `files.ingest` | A manual workflow declares a CSV/XLSX file input. | `required: true` and `formats`, selected from `csv` and `xlsx`; raw bytes and paths never reach the plugin. |
 | `records.query` | A workflow queries a same-plugin records resource or exposes plugin-record reference options. | `{ "required": true }`; same-plugin and company scope are still enforced. |
 | `records.write` | Reserved for host-supported plugin-record workflow updates. | It never grants native/core record writes. Manual workflow authoring does not currently expose `records.update`. |
 | `accounting.schedules.manage` | A public v2 accounting schedule manages company schedules. | `{ "required": true }`; authorization remains company/plugin/extension scoped. |
@@ -187,7 +189,7 @@ Use `actions` for connector calls, safe outputs, imports, and reviewed record
 proposals. Use `workflow` when a user launches a page-bound collection flow
 that needs optional selected rows, rich host-rendered inputs, filtering,
 sorting, distinct/group/aggregate/join operations, bounded branching, or
-terminal record/journal review. Read [Manual Plugin Workflows](manual-plugin-workflows.md)
+declared CSV/XLSX input, or terminal record/journal review. Read [Manual Plugin Workflows](manual-plugin-workflows.md)
 and start from the [renewal workflow example](examples/workflow-renewal-review/).
 
 Workflow triggers are manual only. Selected rows are optional execution

@@ -80,7 +80,7 @@ WORKFLOW_DATA_ONLY_COMMANDS = {
     "records.join", "calculate", "control.if", "control.switch", "control.stop",
 }
 WORKFLOW_LIST_COMMANDS = {
-    "records.query", "records.filter", "records.sort", "records.distinct",
+    "dataset.read", "records.query", "records.filter", "records.sort", "records.distinct",
     "records.aggregate", "records.join", "review.records", "control.for_each",
     "control.if", "control.switch", "control.stop", "calculate",
     "accounting.journal.preview",
@@ -302,6 +302,8 @@ def workflow_input_errors(prefix: str, item: dict[str, Any], manifest: dict[str,
             valid = isinstance(values, list) and len(values) <= 100 and all(isinstance(value, str) and value.strip() for value in values) and len(set(values)) == len(values)
         elif input_type == "dimension_assignments":
             valid = isinstance(default, dict) and len(default) <= 100 and all(isinstance(key, str) and key and isinstance(value, str) and value for key, value in default.items())
+        elif input_type == "file":
+            valid = False
         if not valid:
             errors.append(f"{prefix}.defaultValue: does not match input type")
     if input_type == "reference":
@@ -320,6 +322,32 @@ def workflow_input_errors(prefix: str, item: dict[str, Any], manifest: dict[str,
             resource = workflow_resource(extensions, reference.get("extensionId"), reference.get("resourceId"))
             if resource is None or resource.get("access") == "host_only":
                 errors.append(f"{prefix}.reference: must target a user-accessible same-plugin records resource")
+    if input_type == "file":
+        file_spec = item.get("file", {})
+        requested_formats = set(file_spec.get("formats", []))
+        granted_formats = set(capability_list(manifest, "files.ingest", "formats"))
+        if not capability_required(manifest, "files.ingest") or not requested_formats.issubset(granted_formats):
+            errors.append(f"{prefix}.file: formats require matching capabilities.files.ingest grants")
+        field_ids: set[Any] = set()
+        header_owners: dict[str, str] = {}
+        for field_index, field in enumerate(file_spec.get("fields", [])):
+            field_id = field.get("fieldId")
+            field_prefix = f"{prefix}.file.fields[{field_index}]"
+            if field_id in field_ids:
+                errors.append(f"{field_prefix}.fieldId: duplicate")
+            if field_id == "id" or (isinstance(field_id, str) and field_id.startswith("_workflow")):
+                errors.append(f"{field_prefix}.fieldId: reserved by the workflow host")
+            field_ids.add(field_id)
+            candidates = [field_id, field.get("label"), *field.get("aliases", [])]
+            for candidate in candidates:
+                if not isinstance(candidate, str):
+                    continue
+                normalized = "".join(char for char in candidate.strip().lower() if char.isalnum())
+                owner = header_owners.get(normalized)
+                if normalized and owner is not None and owner != field_id:
+                    errors.append(f"{field_prefix}.aliases: header name conflicts with field {owner}")
+                elif normalized:
+                    header_owners[normalized] = field_id
     return errors
 
 
@@ -375,11 +403,17 @@ def validate_workflow_commands(commands: list[dict[str, Any]], prefix: str, inpu
             state["reviews"] += 1
             if state["reviews"] > 1:
                 errors.append(f"{cp}: only one review.records command is supported")
+        if name == "dataset.read":
+            input_id = spec.get("inputId")
+            if state.get("input_types", {}).get(input_id) != "file":
+                errors.append(f"{cp}.with.inputId: must reference a declared file input")
         if name == "accounting.journal.preview":
             if state["reviews"] != 1:
                 errors.append(f"{cp}: accounting.journal.preview requires one earlier review.records command")
             if index != len(commands) - 1:
                 errors.append(f"{cp}: accounting.journal.preview must be final")
+            if spec.get("deduplication") and not isinstance(spec.get("entry", {}).get("sourceRecordId"), dict):
+                errors.append(f"{cp}.with.entry.sourceRecordId: required when deduplication is declared")
         if name == "control.stop" and index != len(commands) - 1:
             errors.append(f"{cp}: control.stop must be final in its block")
         if name == "control.for_each":
@@ -421,15 +455,32 @@ def workflow_bundle_errors(extension_id: str, extension: dict[str, Any], manifes
         elif target_resource is None or target_resource.get("access") == "host_only":
             errors.append(f"{wp}.targetExtensionId: target resource must be user-accessible records")
         input_ids: set[str] = set()
+        input_types: dict[str, Any] = {}
         for input_index, item in enumerate(workflow.get("inputs", [])):
             ip = f"{wp}.inputs[{input_index}]"
             if item.get("inputId") in input_ids:
                 errors.append(f"{ip}.inputId: duplicate")
             input_ids.add(item.get("inputId"))
+            input_types[item.get("inputId")] = item.get("type")
             errors.extend(workflow_input_errors(ip, item, manifest, extensions))
         commands = workflow.get("commands", [])
-        state: dict[str, Any] = {"seen": set(), "total": 0, "reviews": 0}
+        state: dict[str, Any] = {"seen": set(), "total": 0, "reviews": 0, "input_types": input_types}
         errors.extend(validate_workflow_commands(commands, f"{wp}.commands", input_ids, state, set()))
+        file_inputs = {item.get("inputId"): item for item in workflow.get("inputs", []) if item.get("type") == "file"}
+        for command_index, command in enumerate(commands):
+            if command.get("command") != "dataset.read":
+                continue
+            cp = f"{wp}.commands[{command_index}]"
+            spec = command.get("with", {})
+            file_input = file_inputs.get(spec.get("inputId"))
+            if file_input is None:
+                continue
+            if file_input.get("required") is not True:
+                errors.append(f"{cp}.with.inputId: referenced file input must be required")
+            read_limit = spec.get("limit", 500)
+            file_limit = file_input.get("file", {}).get("maxRows", 500)
+            if isinstance(read_limit, int) and isinstance(file_limit, int) and file_limit > read_limit:
+                errors.append(f"{cp}.with.limit: must be at least the referenced file input maxRows")
         for command_index, command in enumerate(commands):
             cp = f"{wp}.commands[{command_index}]"
             if command.get("command") != "records.query":

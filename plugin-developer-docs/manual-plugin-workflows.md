@@ -60,6 +60,7 @@ The host renders and validates the same input model for actions and workflows.
 | `multi_select` | string array | Compatibility alias; prefer `select` plus `multiple: true`. |
 | `reference` | string or string array | Native or same-plugin record ID; at most 100 unique IDs. |
 | `dimension_assignments` | object | Dimension type ID to dimension value ID; at most 100 assignments. |
+| `file` | `{datasetRef,contentHash}` | Manual workflow only. The host stages one declared CSV/XLSX and `dataset.read` exposes normalized rows. |
 
 Every input has `inputId`, `label`, `type`, optional `description`, optional `required`, and an optional type-matched `defaultValue`. Select options are `{value,label}` pairs with unique non-empty values.
 
@@ -103,6 +104,20 @@ A same-plugin reference is:
 ```
 
 The resource must be same-plugin, user-accessible, and declared with a record schema. The current host loads a permission-aware bounded option set of at most 100 rows and filters it locally; it does not expose cursor-paged reference search in this control. A submitted ID is validated again, so loading an option never authorizes a later write.
+
+### File input and header aliases
+
+A manual workflow may declare a required `file` input with exact `csv`/`xlsx`
+formats, 1–5,242,880 bytes, 1–500 rows, and 1–128 typed fields. Every format
+must appear in the root `files.ingest` grant. A field may declare up to 16
+unique, non-blank `aliases`; IDs, labels, and aliases are normalized for header
+matching and must not create an ambiguous match across fields.
+
+Selecting, analyzing, or mapping a file does not start the workflow. Submit
+uses a host-issued company/plugin/workflow/input/definition-scoped reference and
+content hash. Plugins never receive raw bytes or filesystem paths. Use
+`dataset.read` as the first collection command; its limit is 1–500 and must be
+at least the file input's declared `maxRows`.
 
 ## Execution context and selected rows
 
@@ -182,6 +197,7 @@ Operators are bounded arithmetic/date operations plus comparison, Boolean, strin
 
 | Command | Purpose and bounds |
 | --- | --- |
+| `dataset.read` | Read normalized rows from a declared required file input; manual workflows only. |
 | `records.query` | Query the target plugin resource, up to 500 rows, or a granted native entity, up to 200 rows. |
 | `records.filter` | Apply a bounded `and`/`or` predicate tree. |
 | `records.sort` | Stable sort by 1–4 fields with `asc`/`desc` and `first`/`last` null placement. |
@@ -211,6 +227,19 @@ Queries, review, loops, record updates, journal preview, external API operations
 ## Accounting boundary
 
 `accounting.journal.preview` proposes; it never posts by itself. The host owns the preview, permissions, exact-hash confirmation, balance validation, accounts, dates, closed-period policy, reconciliation effects, provenance, audit trail, and canonical posting service. Plugins cannot insert, edit, or delete journal entries directly. Corrections to posted history use the company's allowed reversal, void, supersede, or additive-adjustment workflow.
+
+The omitted/default `shape: "entries"` preserves one source record to one
+journal-entry template with a fixed `lines[]` array. `shape: "line_records"`
+groups reviewed source rows by `entry.entryKey`; every row must resolve identical
+entry header values and an explicit `sourceRecordId`, while `entry.line` maps
+that row to one journal line. A line record may declare debit, credit, or both
+expressions. At runtime exactly one side must resolve to a positive amount.
+
+Optional `deduplication: {"mode":"source_record","onChange":"correction_required"}`
+uses the explicit source identity to make unchanged retries idempotent. Changed
+economic content cannot silently replace posted history; it requires the host's
+correction path. Grouped lines retain the same review, balance, account, date,
+permission, lock, audit, and exact-hash posting controls.
 
 ## Validation
 

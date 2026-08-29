@@ -91,6 +91,7 @@ All properties are typed objects. They may be omitted in JSON because missing ob
 | `surfaces.contribute` | `PluginSurfacesContributeCapability` | C | Required to contribute actions to an approved core surface. |
 | `reports.query` | `PluginReportsQueryCapability` | C | Required for every report source; exact source/version grants. |
 | `workflows.run` | `{required: boolean}` | C | Required for a workflow extension. |
+| `files.ingest` | `FilesIngestCapability` | C | Required when a manual workflow declares a file input. |
 | `records.query` | `{required: boolean}` | C | Required for plugin-record queries and plugin-resource reference options. |
 | `records.write` | `{required: boolean}` | C | Reserved for host-supported plugin-record updates; never a native write grant. |
 | `accounting.schedules.manage` | `{required: boolean}` | C | Required by public v2 accounting schedules. |
@@ -117,6 +118,8 @@ All properties are typed objects. They may be omitted in JSON because missing ob
 |  | `surfaces` | `PluginSurface[]` | C | Approved native surfaces, `reports.catalog.entries`, or `plugin_pages.header.actions`; non-empty when required and no duplicates. |
 | `PluginReportsQueryCapability` | `required` | boolean | R | True when executing a report. |
 |  | `sources` | `ReportSourceGrant[]` | C | Non-empty exact source allowlist when required. |
+| `FilesIngestCapability` | `required` | boolean | R | Must be true when a workflow declares a file input. |
+|  | `formats` | string[] | R | One or both of `csv`, `xlsx`; unique and exact. |
 | `ReportSourceGrant` | `sourceId` | string | R | Semantic source ID, never a table name. |
 |  | `sourceVersion` | string | R | Exact advertised version. |
 
@@ -225,6 +228,7 @@ Every new plugin that executes HTTP must explicitly declare `api.execute` with t
 |  | `label` | string | R | Non-blank. |
 | `DrawerPageLink` | `targetPageId` | string | R | Non-blank. |
 |  | `paramMap` | `Record<string, string>` | O | Source-to-target parameter mapping. |
+|  | `filter` | `AccountReferenceFilter` | O | Native Accounts target only; may require active posting accounts and bound account types/subtypes. |
 | `DrawerReference` | `sourcePageId` | string | R | Non-blank. |
 |  | `valueField` | string | R | Non-blank. |
 |  | `labelField` | string | R | Non-blank. |
@@ -797,6 +801,64 @@ Native target combinations are accounts/vendors/items `create`, customers
 | `transforms` | `ActionReviewTransforms` | O | Bank-register review transformations only. |
 | `ActionReviewTransforms.amount` | `ActionNumberTransform` | O | Amount transform. |
 | `ActionNumberTransform.multiply` | number | R | Finite, nonzero, absolute value ≤1,000,000. |
+
+## `workflow` definition additions
+
+The complete workflow command and expression contract is documented in
+[Manual Plugin Workflows](manual-plugin-workflows.md). The fields below cover
+host-staged file inputs and grouped journal proposals added to the public
+authoring contract.
+
+### Manual workflow file input
+
+| Model | Field | JSON type | Req. | Constraints |
+| --- | --- | --- | --- | --- |
+| `WorkflowFileInput` | `inputId` | string | R | Plugin identifier; unique among workflow inputs. |
+|  | `label` | string | R | Non-blank. |
+|  | `description` | string | O | User-facing guidance. |
+|  | `type` | string | R | Exactly `file`; manual workflows only. |
+|  | `required` | boolean | O | Must be true when used by `dataset.read`. |
+|  | `file` | `WorkflowFileSpec` | R | Staging and normalized-row contract. |
+| `WorkflowFileSpec` | `formats` | string[] | R | One or both of `csv`, `xlsx`; every format needs a matching `files.ingest` grant. |
+|  | `maxBytes` | integer | O | 1–5,242,880. |
+|  | `maxRows` | integer | O | 1–500. |
+|  | `fields` | `WorkflowFileField[]` | R | 1–128 declared normalized fields. |
+| `WorkflowFileField` | `fieldId` | string | R | Plugin identifier; unique and not host-reserved. |
+|  | `label` | string | R | Non-blank canonical header label. |
+|  | `aliases` | string[] | O | At most 16 unique non-blank header aliases. Normalized IDs, labels, and aliases cannot ambiguously name two fields. |
+|  | `dataType` | `DataType` | R | Normalized runtime value type. |
+|  | `required` | boolean | O | Every accepted row must contain a value when true. |
+| `WorkflowDatasetReadCommand.with` | `inputId` | string | R | Declared required file input. |
+|  | `limit` | integer | O | 1–500 and at least the file's declared `maxRows`. |
+
+The workflow receives `{datasetRef, contentHash}`, never raw bytes or a local
+path. Submitted normalized and derived rows become durable workflow audit
+evidence.
+
+### Journal preview shapes and deduplication
+
+| Model | Field | JSON type | Req. | Constraints |
+| --- | --- | --- | --- | --- |
+| `WorkflowJournalPreviewWith` | `source` | string | R | Earlier reviewed collection. |
+|  | `shape` | string | O/C | Omitted or `entries` for fixed entries; required as `line_records` for grouped source rows. |
+|  | `title` | string | O | At most 160 characters. |
+|  | `entry` | `WorkflowJournalEntry` or `WorkflowJournalLineRecordEntry` | R | Shape-specific entry template. |
+|  | `deduplication` | `WorkflowJournalDeduplication` | O | Requires an explicit entry `sourceRecordId`. Available for either shape. |
+| `WorkflowJournalLineRecordEntry` | `entryKey` | `WorkflowExpression` | R | Stable grouping value shared by all rows for one journal. |
+|  | `date` | `WorkflowExpression` | R | Identical resolved header value across grouped rows. |
+|  | `sourceRecordId` | `WorkflowExpression` | R | Stable economic identity, identical across grouped rows. |
+|  | `entryNo`, `memo`, `vendorId` | `WorkflowExpression` | O | Must resolve identically across grouped rows. |
+|  | `line` | `WorkflowJournalLineRecord` | R | Converts each reviewed source row to one journal line. |
+| `WorkflowJournalLineRecord` | `accountId` | `WorkflowExpression` | R | Active posting account resolved by the host. |
+|  | `debit` | `WorkflowExpression` | C | At least one of debit or credit must be declared; both expressions may be declared. Runtime requires exactly one positive side. |
+|  | `credit` | `WorkflowExpression` | C | At least one of debit or credit must be declared; both expressions may be declared. Runtime requires exactly one positive side. |
+|  | `description`, `dimensionAssignments` | `WorkflowExpression` | O | Host-validated optional line fields. |
+| `WorkflowJournalDeduplication` | `mode` | string | R | Exactly `source_record`. |
+|  | `onChange` | string | R | Exactly `correction_required`; changed posted history is never silently replaced. |
+
+Fixed `entries` templates continue to use `entry.lines[]`, where each declared
+line has exactly one of `debit` or `credit`. Grouped `line_records` is the only
+shape that permits both expressions on its single row-level `entry.line`.
 
 ## `plugin_configuration` definition
 

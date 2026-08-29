@@ -145,6 +145,18 @@ go build ./...
 
 ## 6. Manual workflow tests
 
+- [ ] For every file input, verify exact CSV/XLSX grants, the 5 MiB and 500-row
+      limits, required typed fields, and unambiguous matching across field IDs,
+      labels, and no more than 16 aliases.
+- [ ] Confirm file staging causes no workflow, plugin-record, native-record, or
+      accounting write; only Submit starts `dataset.read` with the host-issued
+      reference and content hash.
+- [ ] For `line_records`, test multiple lines per key, multiple keys, identical
+      grouped headers, missing accounts, both/neither positive side, imbalance,
+      exact-hash commit, unchanged retry, and changed-content correction required.
+- [ ] Keep provider fixtures sanitized. Do not claim support for an undocumented
+      export shape merely because a generic header alias happens to match.
+
 - [ ] Launch with no selection, one selected row, multiple rows in different
       input order, and the 500-row boundary. Confirm the persisted resolved
       context always contains selection IDs, records, and count.
