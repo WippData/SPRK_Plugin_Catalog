@@ -1,0 +1,7 @@
+Source line ID,Source type,Source description,Job,Department,Debit,Credit
+generic-payroll-001-wages,Payroll expense,Gross wages,,,10000.00,
+generic-payroll-001-employer-tax,Payroll expense,Employer payroll taxes,,,800.00,
+generic-payroll-001-net-pay,Payroll clearing,Net pay,,,,7500.00
+generic-payroll-001-employee-tax,Payroll clearing,Employee tax withholding,,,,1800.00
+generic-payroll-001-deductions,Payroll clearing,Employee deductions,,,,700.00
+generic-payroll-001-employer-tax-payable,Payroll clearing,Employer payroll taxes payable,,,,800.00

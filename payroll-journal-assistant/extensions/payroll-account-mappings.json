@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "payroll-account-mappings",
+  "type": "new_page",
+  "name": "Payroll Account Mappings",
+  "version": "1.0.0",
+  "description": "Company-specific mappings from payroll export categories to active SPRK posting accounts.",
+  "targets": { "companyScoped": true },
+  "resources": [
+    {
+      "resourceId": "account-mappings",
+      "kind": "records",
+      "schemaVersion": 1,
+      "scope": "company",
+      "access": "user",
+      "recordSchema": {
+        "fields": [
+          { "fieldId": "profile", "dataType": "string", "required": true },
+          { "fieldId": "source_type", "dataType": "string", "required": true },
+          { "fieldId": "source_description", "dataType": "string", "required": true },
+          { "fieldId": "active", "dataType": "boolean", "required": true },
+          { "fieldId": "expected_side", "dataType": "string", "required": true },
+          { "fieldId": "sprk_account_id", "dataType": "string", "required": true },
+          { "fieldId": "notes", "dataType": "string", "required": false }
+        ]
+      }
+    }
+  ],
+  "definition": {
+    "page": {
+      "pageId": "payroll-account-mappings",
+      "pageKind": "list",
+      "title": "Payroll Account Mappings",
+      "icon": "book-open-check",
+      "route": "payroll-account-mappings",
+      "dataSource": { "kind": "resource", "resourceId": "account-mappings" }
+    },
+    "fields": [
+      {
+        "fieldId": "profile",
+        "label": "Profile",
+        "dataType": "string",
+        "required": true,
+        "defaultValue": "generic",
+        "ui": {
+          "table": { "visible": true, "width": 120 },
+          "drawer": {
+            "input": "select",
+            "visible": true,
+            "options": {
+              "kind": "static",
+              "items": [
+                { "value": "generic", "label": "Generic" },
+                { "value": "gusto", "label": "Gusto" }
+              ]
+            }
+          }
+        }
+      },
+      { "fieldId": "source_type", "label": "Source type", "dataType": "string", "required": true, "ui": { "table": { "visible": true, "width": 180 }, "drawer": { "input": "text", "visible": true } } },
+      { "fieldId": "source_description", "label": "Source description", "dataType": "string", "required": true, "ui": { "table": { "visible": true, "width": 240 }, "drawer": { "input": "text", "visible": true } } },
+      { "fieldId": "active", "label": "Active", "dataType": "boolean", "required": true, "defaultValue": true, "ui": { "table": { "visible": true, "width": 90 }, "drawer": { "input": "checkbox", "visible": true } } },
+      {
+        "fieldId": "expected_side",
+        "label": "Expected side",
+        "dataType": "string",
+        "required": true,
+        "defaultValue": "either",
+        "ui": {
+          "table": { "visible": true, "width": 120 },
+          "drawer": {
+            "input": "select",
+            "visible": true,
+            "options": {
+              "kind": "static",
+              "items": [
+                { "value": "debit", "label": "Debit" },
+                { "value": "credit", "label": "Credit" },
+                { "value": "either", "label": "Either" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "fieldId": "sprk_account_id",
+        "label": "SPRK account",
+        "dataType": "string",
+        "required": true,
+        "ui": {
+          "table": { "visible": true, "width": 220 },
+          "drawer": {
+            "input": "page_link",
+            "visible": true,
+            "pageLink": {
+              "targetPageId": "accounts",
+              "filter": { "postingOnly": true }
+            }
+          }
+        }
+      },
+      { "fieldId": "notes", "label": "Notes", "dataType": "string", "required": false, "ui": { "table": { "visible": false }, "drawer": { "input": "textarea", "visible": true } } }
+    ],
+    "importTemplate": {
+      "key": "payroll-account-mappings",
+      "templateName": "Payroll account mappings",
+      "fileName": "payroll-account-mappings.csv",
+      "acceptedFormats": ["csv", "xlsx"],
+      "requiredColumns": [
+        { "name": "Profile", "key": "profile", "required": true },
+        { "name": "Source type", "key": "source_type", "required": true },
+        { "name": "Source description", "key": "source_description", "required": true },
+        { "name": "SPRK account ID", "key": "sprk_account_id", "required": true }
+      ],
+      "optionalColumns": [
+        { "name": "Active", "key": "active", "required": false },
+        { "name": "Expected side", "key": "expected_side", "required": false },
+        { "name": "Notes", "key": "notes", "required": false }
+      ],
+      "notes": [
+        "Profile must be Generic or Gusto.",
+        "Source type and source description must match the payroll export after trimming and case normalization.",
+        "Use an active posting account ID from this company."
+      ]
+    },
+    "pageActions": [
+      { "actionId": "new", "enabled": true },
+      { "actionId": "refresh", "enabled": true },
+      { "actionId": "import", "enabled": true }
+    ],
+    "rowActions": [
+      { "actionId": "view", "enabled": true },
+      { "actionId": "edit", "enabled": true },
+      { "actionId": "delete", "enabled": true }
+    ]
+  }
+}

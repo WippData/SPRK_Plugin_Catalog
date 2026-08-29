@@ -1,0 +1,232 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "payroll-journal-workflows",
+  "type": "workflow",
+  "name": "Payroll Journal Workflows",
+  "version": "1.0.0",
+  "description": "Import payroll general-ledger lines, apply company account mappings, and open host-owned journal review.",
+  "targets": { "companyScoped": true },
+  "definition": {
+    "definitionVersion": 1,
+    "workflows": [
+      {
+        "workflowId": "import-payroll-journal",
+        "name": "Import payroll journal",
+        "description": "Upload generic or Gusto general-ledger lines, review their account mappings, and propose one balanced journal for the payroll run.",
+        "targetExtensionId": "payroll-account-mappings",
+        "trigger": { "type": "manual" },
+        "inputs": [
+          {
+            "inputId": "payroll-file",
+            "label": "Payroll general-ledger file",
+            "description": "Choose a generic or Gusto General Ledger Mapper CSV/XLSX. Raw payroll-journal employee detail is not supported.",
+            "type": "file",
+            "required": true,
+            "file": {
+              "formats": ["csv", "xlsx"],
+              "maxBytes": 5242880,
+              "maxRows": 500,
+              "fields": [
+                { "fieldId": "source_line_id", "label": "Source line ID", "dataType": "string", "required": false },
+                { "fieldId": "source_type", "label": "Source type", "aliases": ["Account Type"], "dataType": "string", "required": true },
+                { "fieldId": "source_description", "label": "Source description", "aliases": ["Account Description"], "dataType": "string", "required": true },
+                { "fieldId": "job", "label": "Job", "dataType": "string", "required": false },
+                { "fieldId": "department", "label": "Department", "dataType": "string", "required": false },
+                { "fieldId": "debit", "label": "Debit", "dataType": "currency", "required": false },
+                { "fieldId": "credit", "label": "Credit", "dataType": "currency", "required": false }
+              ]
+            }
+          },
+          {
+            "inputId": "profile",
+            "label": "Mapping profile",
+            "type": "select",
+            "required": true,
+            "defaultValue": "generic",
+            "options": [
+              { "value": "generic", "label": "Generic" },
+              { "value": "gusto", "label": "Gusto" }
+            ]
+          },
+          { "inputId": "payroll-run-id", "label": "Payroll run ID", "description": "Use the same stable provider payroll ID when correcting or retrying this payroll.", "type": "text", "required": true },
+          { "inputId": "posting-date", "label": "Check / posting date", "description": "Gusto reports payroll totals by check date.", "type": "date", "required": true },
+          { "inputId": "memo", "label": "Journal memo", "type": "text", "required": true, "defaultValue": "Payroll journal" }
+        ],
+        "commands": [
+          {
+            "id": "load-payroll-file",
+            "command": "dataset.read",
+            "with": { "inputId": "payroll-file", "limit": 500 }
+          },
+          {
+            "id": "prepare-payroll-lines",
+            "command": "calculate",
+            "with": {
+              "source": "$steps.load-payroll-file.records",
+              "calculations": [
+                { "field": "profile", "valueType": "string", "expression": { "kind": "input", "input": "profile" } },
+                { "field": "normalized_source_type", "valueType": "string", "expression": { "kind": "operation", "operator": "lower", "args": [{ "kind": "operation", "operator": "trim", "args": [{ "kind": "field", "field": "source_type" }] }] } },
+                { "field": "normalized_source_description", "valueType": "string", "expression": { "kind": "operation", "operator": "lower", "args": [{ "kind": "operation", "operator": "trim", "args": [{ "kind": "field", "field": "source_description" }] }] } },
+                { "field": "debit_amount", "valueType": "number", "expression": { "kind": "operation", "operator": "coalesce", "args": [{ "kind": "field", "field": "debit" }, { "kind": "value", "value": 0 }] } },
+                { "field": "credit_amount", "valueType": "number", "expression": { "kind": "operation", "operator": "coalesce", "args": [{ "kind": "field", "field": "credit" }, { "kind": "value", "value": 0 }] } },
+                {
+                  "field": "payroll_source_id",
+                  "valueType": "string",
+                  "expression": {
+                    "kind": "operation",
+                    "operator": "concat",
+                    "args": [
+                      { "kind": "input", "input": "profile" },
+                      { "kind": "value", "value": ":" },
+                      { "kind": "input", "input": "payroll-run-id" }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "query-active-mappings",
+            "command": "records.query",
+            "with": {
+              "resource": { "extensionId": "payroll-account-mappings", "resourceId": "account-mappings" },
+              "fields": ["profile", "source_type", "source_description", "active", "expected_side", "sprk_account_id"],
+              "limit": 500,
+              "predicate": { "operator": "and", "predicates": [{ "field": "active", "op": "eq", "value": true }] }
+            }
+          },
+          {
+            "id": "prepare-mapping-keys",
+            "command": "calculate",
+            "with": {
+              "source": "$steps.query-active-mappings.records",
+              "calculations": [
+                { "field": "normalized_source_type", "valueType": "string", "expression": { "kind": "operation", "operator": "lower", "args": [{ "kind": "operation", "operator": "trim", "args": [{ "kind": "field", "field": "source_type" }] }] } },
+                { "field": "normalized_source_description", "valueType": "string", "expression": { "kind": "operation", "operator": "lower", "args": [{ "kind": "operation", "operator": "trim", "args": [{ "kind": "field", "field": "source_description" }] }] } }
+              ]
+            }
+          },
+          {
+            "id": "join-account-mappings",
+            "command": "records.join",
+            "with": {
+              "left": "$steps.prepare-payroll-lines.records",
+              "right": "$steps.prepare-mapping-keys.records",
+              "type": "left",
+              "on": [
+                { "leftField": "profile", "rightField": "profile" },
+                { "leftField": "normalized_source_type", "rightField": "normalized_source_type" },
+                { "leftField": "normalized_source_description", "rightField": "normalized_source_description" }
+              ],
+              "rightPrefix": "mapping_",
+              "limit": 500
+            }
+          },
+          {
+            "id": "identify-payroll-line-sides",
+            "command": "calculate",
+            "with": {
+              "source": "$steps.join-account-mappings.records",
+              "calculations": [
+                {
+                  "field": "actual_side",
+                  "valueType": "string",
+                  "expression": {
+                    "kind": "operation",
+                    "operator": "conditional",
+                    "args": [
+                      { "kind": "operation", "operator": "gt", "args": [{ "kind": "field", "field": "debit_amount" }, { "kind": "value", "value": 0 }] },
+                      { "kind": "value", "value": "debit" },
+                      { "kind": "value", "value": "credit" }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "flag-payroll-line-sides",
+            "command": "calculate",
+            "with": {
+              "source": "$steps.identify-payroll-line-sides.records",
+              "calculations": [
+                {
+                  "field": "side_mismatch",
+                  "valueType": "boolean",
+                  "expression": {
+                    "kind": "operation",
+                    "operator": "and",
+                    "args": [
+                      { "kind": "operation", "operator": "ne", "args": [{ "kind": "field", "field": "mapping_expected_side" }, { "kind": "value", "value": "either" }] },
+                      { "kind": "operation", "operator": "ne", "args": [{ "kind": "field", "field": "mapping_expected_side" }, { "kind": "field", "field": "actual_side" }] }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "describe-payroll-line-review",
+            "command": "calculate",
+            "with": {
+              "source": "$steps.flag-payroll-line-sides.records",
+              "calculations": [
+                {
+                  "field": "line_description",
+                  "valueType": "string",
+                  "expression": {
+                    "kind": "operation",
+                    "operator": "conditional",
+                    "args": [
+                      { "kind": "field", "field": "side_mismatch" },
+                      {
+                        "kind": "operation",
+                        "operator": "concat",
+                        "args": [
+                          { "kind": "field", "field": "source_description" },
+                          { "kind": "value", "value": " [Expected " },
+                          { "kind": "field", "field": "mapping_expected_side" },
+                          { "kind": "value", "value": "; imported " },
+                          { "kind": "field", "field": "actual_side" },
+                          { "kind": "value", "value": "]" }
+                        ]
+                      },
+                      { "kind": "field", "field": "source_description" }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "review-payroll-lines",
+            "command": "review.records",
+            "with": { "source": "$steps.describe-payroll-line-review.records", "title": "Review payroll journal lines" }
+          },
+          {
+            "id": "preview-payroll-journal",
+            "command": "accounting.journal.preview",
+            "with": {
+              "source": "$steps.review-payroll-lines.records",
+              "shape": "line_records",
+              "title": "Confirm payroll journal",
+              "deduplication": { "mode": "source_record", "onChange": "correction_required" },
+              "entry": {
+                "entryKey": { "kind": "field", "field": "payroll_source_id" },
+                "date": { "kind": "input", "input": "posting-date" },
+                "memo": { "kind": "input", "input": "memo" },
+                "sourceRecordId": { "kind": "field", "field": "payroll_source_id" },
+                "line": {
+                  "accountId": { "kind": "field", "field": "mapping_sprk_account_id" },
+                  "debit": { "kind": "field", "field": "debit_amount" },
+                  "credit": { "kind": "field", "field": "credit_amount" },
+                  "description": { "kind": "field", "field": "line_description" }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
