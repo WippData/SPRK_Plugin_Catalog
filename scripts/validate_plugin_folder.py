@@ -485,6 +485,38 @@ def bundle_errors(manifest: dict[str, Any], extensions: dict[str, dict[str, Any]
                 actions[(extension_id, action.get("actionId"))] = action
         elif ext_type == "workflow":
             errors.extend(workflow_bundle_errors(extension_id, extension, manifest, extensions))
+        elif ext_type == "accounting_schedule" and definition.get("definitionVersion") == "2":
+            for capability in ("accounting.schedules.manage", "accounting.journal.propose"):
+                if not capability_required(manifest, capability):
+                    errors.append(f"extensions.{extension_id}: v2 accounting schedule requires capabilities.{capability}.required")
+
+            fields = {
+                field.get("fieldId"): field
+                for field in definition.get("fields", [])
+                if isinstance(field, dict)
+            }
+            source_reference = fields.get("sourceReference")
+            if not source_reference or source_reference.get("dataType") != "string" or source_reference.get("required") is not True:
+                errors.append(f"extensions.{extension_id}: v2 accounting schedule requires a required string sourceReference field")
+
+            calculation = definition.get("calculation", {})
+            source_types = {
+                "amountSource": {"currency", "number"},
+                "startDateSource": {"date"},
+                "periodCountSource": {"number"},
+                "openingRecognizedAmountSource": {"currency", "number"},
+                "openingRecognizedThroughSource": {"date"},
+                "salvageValueSource": {"currency", "number"},
+            }
+            for source_key, allowed_types in source_types.items():
+                field_id = calculation.get(source_key)
+                if source_key == "salvageValueSource" and field_id is None:
+                    continue
+                field = fields.get(field_id)
+                if field is None:
+                    errors.append(f"extensions.{extension_id}.definition.calculation.{source_key}: must reference a declared field")
+                elif field.get("dataType") not in allowed_types:
+                    errors.append(f"extensions.{extension_id}.definition.calculation.{source_key}: field type must be one of {sorted(allowed_types)!r}")
 
     if configuration_count > 1:
         errors.append("bundle: at most one plugin_configuration extension is allowed")

@@ -93,7 +93,8 @@ All properties are typed objects. They may be omitted in JSON because missing ob
 | `workflows.run` | `{required: boolean}` | C | Required for a workflow extension. |
 | `records.query` | `{required: boolean}` | C | Required for plugin-record queries and plugin-resource reference options. |
 | `records.write` | `{required: boolean}` | C | Reserved for host-supported plugin-record updates; never a native write grant. |
-| `accounting.journal.propose` | `{required: boolean}` | C | Required for journal preview; posting remains host-owned. |
+| `accounting.schedules.manage` | `{required: boolean}` | C | Required by public v2 accounting schedules. |
+| `accounting.journal.propose` | `{required: boolean}` | C | Required for workflow journal previews and host-reviewed schedule journal proposals; posting remains host-owned and direct GL writes are never granted. |
 
 ### Capability submodels
 
@@ -388,6 +389,7 @@ Posting is host-owned accounting behavior. A declaration may propose entries, bu
 | Model | Field | JSON type | Req. | Constraints |
 | --- | --- | --- | --- | --- |
 | `AccountingScheduleDefinition` | `schedule` | `AccountingScheduleConfig` | R | Schedule metadata. |
+|  | `definitionVersion` | string | O/C | Set to `"2"` for public runtime schedules; legacy omission remains install-compatible. |
 |  | `templates` | `AccountingScheduleTemplateDef[]` | O | Schedule templates. |
 |  | `fields` | `FieldDef[]` | O | Unique field IDs. |
 |  | `relationRoles` | `AccountingScheduleRelationRoleDef[]` | O | Unique relation role IDs. |
@@ -438,7 +440,11 @@ Posting is host-owned accounting behavior. A declaration may propose entries, bu
 |  | `endDateSource` | string | C | At least one of this, `usefulLifeMonthsSource`, `usefulLifeYearsSource`. |
 |  | `usefulLifeMonthsSource` | string | C | Same conditional rule. |
 |  | `usefulLifeYearsSource` | string | C | Same conditional rule. |
+|  | `periodCountSource` | string | C | Required by v2; references a declared number field. |
 |  | `salvageValueSource` | string | O | Salvage-value source. |
+|  | `openingRecognizedAmountSource` | string | O/C | Required by v2; references a declared currency or number field. |
+|  | `openingRecognizedThroughSource` | string | O/C | Required by v2; references a declared date field. |
+|  | `postingConvention` | string | O/C | Required by v2; currently `month_end`. |
 |  | `frequency` | string | O | Calculation frequency. |
 |  | `roundingPolicy` | string | O | Rounding policy. |
 | `AccountingSchedulePostingDef` | `mode` | string | O | Posting mode. |
@@ -453,6 +459,17 @@ Posting is host-owned accounting behavior. A declaration may propose entries, bu
 |  | `credit` | string | C | Same. |
 
 Schedule posting is subject to the same host-owned accounting constraints stated for transaction posting.
+V2 schedules also declare a required string field named `sourceReference` and
+both accounting capabilities. The host owns journal preview, exact-hash commit,
+idempotency, period controls, audit history, and reversals.
+
+The host derives CSV/XLSX import columns from `fields[].fieldId` and
+`accountRoles[].roleId`; there is no schedule `importTemplate` manifest field.
+Only the first XLSX worksheet is read. Account cells accept an exact company
+account ID or a unique company account code and must pass active, posting, and
+declared account-type checks. Import preview is limited to 500 rows, and exact
+preview-hash commit atomically creates drafts with idempotent `importKey`
+replay. Schedule import does not post journals.
 
 ## `report` definition
 

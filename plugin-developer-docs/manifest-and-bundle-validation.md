@@ -26,7 +26,8 @@ between them before installation or enablement.
 - `reports.query.sources` is a non-empty exact source ID/version allowlist when
   required. Current source IDs are `gl.lines`, `invoice.lines`, and
   `bank.register`, all at version `1`.
-- `workflows.run`, `records.query`, `records.write`, and
+- `workflows.run`, `records.query`, `records.write`,
+  `accounting.schedules.manage`, and
   `accounting.journal.propose` are strict `{required}` grants. They do not
   authorize direct native/core writes.
 - Extension reference IDs must be unique.
@@ -49,6 +50,11 @@ between them before installation or enablement.
   source, explicit basis metadata, and at least one table view.
 - A new workflow uses `definitionVersion: 1`, manual trigger only, 1–32
   workflows, at most 32 typed inputs, and 1–16 top-level commands.
+- A public accounting schedule sets `definitionVersion: "2"`, declares typed
+  period-count and opening-recognition sources with `month_end` posting, and
+  includes a required string `sourceReference` field. It requires both
+  accounting capabilities. Legacy definitions may omit the version and remain
+  install-compatible.
 
 ## Cross-extension rules
 

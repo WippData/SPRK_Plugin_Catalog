@@ -160,7 +160,8 @@ experience and grant bounded host behavior; request the smallest set needed.
 | `workflows.run` | The bundle declares a manual `workflow` extension. | `{ "required": true }`. |
 | `records.query` | A workflow queries a same-plugin records resource or exposes plugin-record reference options. | `{ "required": true }`; same-plugin and company scope are still enforced. |
 | `records.write` | Reserved for host-supported plugin-record workflow updates. | It never grants native/core record writes. Manual workflow authoring does not currently expose `records.update`. |
-| `accounting.journal.propose` | A workflow builds a journal preview. | `{ "required": true }`; preview and posting remain host-owned. |
+| `accounting.schedules.manage` | A public v2 accounting schedule manages company schedules. | `{ "required": true }`; authorization remains company/plugin/extension scoped. |
+| `accounting.journal.propose` | A workflow builds a journal preview or a public v2 accounting schedule proposes recognition journals. | `{ "required": true }`; preview, exact review, and posting remain host-owned, and the grant never permits direct GL writes. |
 
 An `actions` extension requires `actions.run`. Individual action steps require
 the matching capability: `data.*` needs `data`, `api.execute` needs
@@ -259,6 +260,20 @@ records through the one-row drawer or multi-row import-preview workflow.
 truth, debits equal credits, and posted history is preserved through audit,
 reversal, void, supersede, or additive correction as appropriate. Do not create
 a plugin-only accounting write path.
+
+Public schedule definitions set `definitionVersion: "2"`, declare both
+accounting capabilities, and provide typed period-count and opening-recognition
+sources. They also declare a required string `sourceReference` field. Legacy
+definitions that omit the version remain install-compatible but are not public
+runtime pages.
+
+Public v2 schedule pages support host-reviewed CSV and XLSX import without a
+connector or file-workflow capability. The first row (and first XLSX worksheet)
+uses declared schedule field IDs and account role IDs. Account values resolve
+by exact company account ID first, then unique company account code, and remain
+subject to active, posting, and role account-type validation. The host caps a
+preview at 500 rows and requires its exact hash for an atomic draft-only commit;
+`importKey` replay is idempotent. Import never posts a journal.
 
 ## Validation and references
 

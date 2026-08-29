@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import importlib.util
 import json
 import shutil
@@ -12,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "plugin-developer-docs" / "plugin-manifest.schema.json"
 EXAMPLES = ROOT / "plugin-developer-docs" / "examples"
+ACCOUNTING_SCHEDULES = ROOT / "accounting-schedules"
 SPEC = importlib.util.spec_from_file_location(
     "validate_plugin_folder", ROOT / "scripts" / "validate_plugin_folder.py"
 )
@@ -323,6 +325,79 @@ class PluginFolderValidatorTests(unittest.TestCase):
             )
             errors = self.validate(folder)
             self.assertIn("must match exactly one allowed shape", "\n".join(errors))
+
+    def test_v2_accounting_schedules_bundle_is_valid(self) -> None:
+        self.assertEqual(self.validate(ACCOUNTING_SCHEDULES), [])
+
+    def test_v2_accounting_schedule_requires_host_capabilities(self) -> None:
+        for capability in ("accounting.schedules.manage", "accounting.journal.propose"):
+            with self.subTest(capability=capability), tempfile.TemporaryDirectory() as temporary:
+                folder = Path(temporary) / "accounting-schedules"
+                shutil.copytree(ACCOUNTING_SCHEDULES, folder)
+                self.update_json(
+                    folder / "manifest.json",
+                    lambda manifest: manifest["capabilities"].pop(capability),
+                )
+                self.assertIn(
+                    f"requires capabilities.{capability}.required",
+                    "\n".join(self.validate(folder)),
+                )
+
+    def test_v2_accounting_schedule_requires_source_reference_and_typed_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary) / "accounting-schedules"
+            shutil.copytree(ACCOUNTING_SCHEDULES, folder)
+
+            def break_definition(extension: dict) -> None:
+                fields = extension["definition"]["fields"]
+                next(field for field in fields if field["fieldId"] == "sourceReference")["required"] = False
+                extension["definition"]["calculation"]["periodCountSource"] = "assetName"
+
+            self.update_json(folder / "extensions" / "fixed-assets.json", break_definition)
+            joined = "\n".join(self.validate(folder))
+            self.assertIn("requires a required string sourceReference field", joined)
+            self.assertIn("periodCountSource: field type must be one of ['number']", joined)
+
+    def test_legacy_accounting_schedule_remains_install_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary) / "accounting-schedules"
+            shutil.copytree(ACCOUNTING_SCHEDULES, folder)
+
+            def make_legacy(extension: dict) -> None:
+                definition = extension["definition"]
+                definition.pop("definitionVersion")
+                calculation = definition["calculation"]
+                calculation["usefulLifeMonthsSource"] = calculation.pop("periodCountSource")
+                calculation.pop("openingRecognizedAmountSource")
+                calculation.pop("openingRecognizedThroughSource")
+                calculation.pop("postingConvention")
+
+            manifest_path = folder / "manifest.json"
+            self.update_json(manifest_path, lambda manifest: manifest.__setitem__("capabilities", {}))
+            for extension_name in ("fixed-assets", "prepaid-expenses", "deferred-revenue"):
+                self.update_json(folder / "extensions" / f"{extension_name}.json", make_legacy)
+            self.assertEqual(self.validate(folder), [])
+
+    def test_accounting_schedule_import_examples_match_declared_headers(self) -> None:
+        for extension_path in sorted((ACCOUNTING_SCHEDULES / "extensions").glob("*.json")):
+            extension = json.loads(extension_path.read_text(encoding="utf-8"))
+            definition = extension["definition"]
+            declared = {
+                *(field["fieldId"] for field in definition["fields"]),
+                *(role["roleId"] for role in definition["accountRoles"]),
+            }
+            template_path = ACCOUNTING_SCHEDULES / "templates" / f"{extension_path.stem}.csv"
+            with template_path.open(newline="", encoding="utf-8") as template_file:
+                rows = list(csv.reader(template_file))
+            with self.subTest(extension=extension_path.stem):
+                self.assertEqual(len(rows), 2)
+                self.assertEqual(set(rows[0]), declared)
+                self.assertIn("sourceReference", rows[0])
+                self.assertEqual(len(rows[0]), len(rows[1]))
+                for role in definition["accountRoles"]:
+                    account_value = rows[1][rows[0].index(role["roleId"])]
+                    self.assertTrue(account_value)
+                    self.assertNotEqual(account_value, "account-id")
 
 
 if __name__ == "__main__":

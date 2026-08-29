@@ -31,6 +31,16 @@ hashes, action commands, connector references, safe outputs, review mappings,
 binding context, and surface alignment. A nonzero exit means the bundle is not
 ready to package.
 
+For a v2 accounting schedule, also confirm every calculation source resolves
+to a declared field of the expected type, `sourceReference` is required, both
+accounting capabilities are granted, posting lines are balanced by design, and
+only the host preview/commit path can affect the GL.
+
+For schedule imports, test CSV and first-worksheet XLSX parsing, field-ID and
+account-role headers, ID-before-unique-code account resolution, inactive or
+non-posting and wrong-type account rejection, the 500-row cap, stale-hash
+rejection, atomic draft creation, and idempotent `importKey` replay.
+
 The authoritative external path is the SPRK install preview backed by the
 backend SDK validators:
 
