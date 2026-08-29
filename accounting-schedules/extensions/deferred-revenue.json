@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "2", "extensionId": "deferred-revenue", "type": "accounting_schedule", "name": "Deferred Revenue", "version": "1.0.0",
+  "description": "Straight-line monthly deferred revenue recognition.", "targets": { "companyScoped": true },
+  "definition": {
+    "definitionVersion": "2",
+    "schedule": { "scheduleId": "deferred-revenue", "title": "Deferred Revenue", "description": "Track equal-month deferred revenue recognition at month-end.", "icon": "badge-dollar-sign", "category": "Accounting schedules", "route": "deferred-revenue" },
+    "templates": [{ "templateId": "straight-line-monthly", "name": "Straight-line monthly", "calculationMethod": "straight_line_monthly", "postingFrequency": "monthly", "roundingPolicy": "final_period", "headerDefaults": { "openingRecognizedRevenue": 0 }, "requireApproval": true }],
+    "fields": [
+      { "fieldId": "deferredRevenueName", "label": "Deferred revenue name", "dataType": "string", "required": true, "ui": { "table": { "visible": true, "width": 220 }, "drawer": { "input": "text", "visible": true } } },
+      { "fieldId": "description", "label": "Description", "dataType": "string", "required": false, "ui": { "table": { "visible": false }, "drawer": { "input": "textarea", "visible": true } } },
+      { "fieldId": "sourceReference", "label": "Source reference", "dataType": "string", "required": true, "ui": { "table": { "visible": true, "width": 160 }, "drawer": { "input": "text", "visible": true } } },
+      { "fieldId": "deferredAmount", "label": "Deferred amount", "dataType": "currency", "required": true, "ui": { "table": { "visible": true, "width": 140 }, "drawer": { "input": "number", "visible": true } } },
+      { "fieldId": "recognitionStartDate", "label": "Recognition start date", "dataType": "date", "required": true, "ui": { "table": { "visible": true, "width": 160 }, "drawer": { "input": "date", "visible": true } } },
+      { "fieldId": "periodCount", "label": "Recognition months", "dataType": "number", "required": true, "ui": { "table": { "visible": true, "width": 150 }, "drawer": { "input": "number", "visible": true } } },
+      { "fieldId": "openingRecognizedRevenue", "label": "Opening recognized revenue", "dataType": "currency", "required": false, "defaultValue": 0, "ui": { "table": { "visible": false }, "drawer": { "input": "number", "visible": true } } },
+      { "fieldId": "openingRecognizedThrough", "label": "Opening recognized through", "dataType": "date", "required": false, "ui": { "table": { "visible": false }, "drawer": { "input": "date", "visible": true } } }
+    ],
+    "accountRoles": [
+      { "roleId": "deferredRevenueAccountId", "label": "Deferred revenue account", "required": true, "accountTypes": ["liability"] },
+      { "roleId": "revenueAccountId", "label": "Revenue account", "required": true, "accountTypes": ["income"] }
+    ],
+    "calculation": { "methods": ["straight_line_monthly"], "defaultMethod": "straight_line_monthly", "amountSource": "deferredAmount", "startDateSource": "recognitionStartDate", "periodCountSource": "periodCount", "openingRecognizedAmountSource": "openingRecognizedRevenue", "openingRecognizedThroughSource": "openingRecognizedThrough", "postingConvention": "month_end", "frequency": "monthly", "roundingPolicy": "final_period" },
+    "posting": { "mode": "recognition_only", "dateSource": "postDate", "entryNoPattern": "DR-{{schedule.id}}-{{line.sequence}}", "memoPattern": "Deferred revenue recognition through {{line.periodEnd}}", "idempotencyKeyPattern": "accounting-schedules:deferred-revenue:{{schedule.id}}:{{line.id}}", "lines": [
+      { "accountRoleId": "deferredRevenueAccountId", "description": "Reduce deferred revenue", "debit": "line.amount" },
+      { "accountRoleId": "revenueAccountId", "description": "Revenue recognition", "credit": "line.amount" }
+    ] }
+  }
+}

@@ -15,6 +15,7 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_PATH = ROOT / "catalog.source.json"
 CATALOG_PATH = ROOT / "catalog.json"
+APP_CATALOG_PATH = ROOT / "catalog-v0.4.28.json"
 DIST_DIR = ROOT / "dist"
 SCHEMA_REF = "schemas/catalog.schema.json"
 REPOSITORY = "WippData/SPRK_Plugin_Catalog"
@@ -267,22 +268,45 @@ def catalog_bytes(catalog: dict) -> bytes:
     return (json.dumps(catalog, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
 
 
+def legacy_catalog(catalog: dict) -> dict:
+    legacy = dict(catalog)
+    legacy["plugins"] = []
+    for plugin in catalog["plugins"]:
+        releases = [
+            release
+            for release in plugin["releases"]
+            if not release["minAppVersion"].startswith("0.")
+        ]
+        if releases:
+            legacy["plugins"].append({**plugin, "releases": releases})
+    validate_catalog(legacy)
+    return legacy
+
+
 def build() -> None:
     catalog, archives = build_outputs()
+    legacy = legacy_catalog(catalog)
     DIST_DIR.mkdir(parents=True, exist_ok=True)
-    CATALOG_PATH.write_bytes(catalog_bytes(catalog))
+    CATALOG_PATH.write_bytes(catalog_bytes(legacy))
+    APP_CATALOG_PATH.write_bytes(catalog_bytes(catalog))
     for file_name, contents in archives.items():
         (DIST_DIR / file_name).write_bytes(contents)
     print(f"wrote {CATALOG_PATH.relative_to(ROOT)}")
+    print(f"wrote {APP_CATALOG_PATH.relative_to(ROOT)}")
     for file_name in sorted(archives):
         print(f"wrote dist/{file_name} sha256={sha256_bytes(archives[file_name])}")
 
 
 def check() -> None:
     catalog, archives = build_outputs()
-    expected_catalog = catalog_bytes(catalog)
-    if not CATALOG_PATH.is_file() or CATALOG_PATH.read_bytes() != expected_catalog:
+    expected_legacy_catalog = catalog_bytes(legacy_catalog(catalog))
+    expected_app_catalog = catalog_bytes(catalog)
+    if not CATALOG_PATH.is_file() or CATALOG_PATH.read_bytes() != expected_legacy_catalog:
         raise CatalogError("catalog.json is missing or stale; run: python3 scripts/catalog.py build")
+    if not APP_CATALOG_PATH.is_file() or APP_CATALOG_PATH.read_bytes() != expected_app_catalog:
+        raise CatalogError(
+            "catalog-v0.4.28.json is missing or stale; run: python3 scripts/catalog.py build"
+        )
     actual_assets = {path.name for path in DIST_DIR.glob("*.zip")} if DIST_DIR.is_dir() else set()
     expected_assets = set(archives)
     if actual_assets != expected_assets:
@@ -297,7 +321,10 @@ def check() -> None:
             names = archive.namelist()
             if "manifest.json" not in names or any(name.startswith("/") for name in names):
                 raise CatalogError(f"dist/{file_name} does not contain a root manifest.json")
-    print(f"catalog valid: {len(catalog['plugins'])} plugins, {len(archives)} deterministic ZIPs")
+    print(
+        f"catalogs valid: {len(legacy_catalog(catalog)['plugins'])} legacy plugins, "
+        f"{len(catalog['plugins'])} app plugins, {len(archives)} deterministic ZIPs"
+    )
     for file_name in sorted(archives):
         print(f"dist/{file_name} sha256={sha256_bytes(archives[file_name])}")
 
@@ -319,4 +346,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

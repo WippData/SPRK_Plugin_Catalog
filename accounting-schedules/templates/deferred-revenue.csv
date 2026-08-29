@@ -1,0 +1,2 @@
+deferredRevenueName,description,sourceReference,deferredAmount,recognitionStartDate,periodCount,openingRecognizedRevenue,openingRecognizedThrough,deferredRevenueAccountId,revenueAccountId
+Annual subscription,Example only,INV-1001,2400.00,2026-01-01,12,0.00,,2300,4100
