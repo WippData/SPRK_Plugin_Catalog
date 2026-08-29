@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "payroll-journal-assistant",
+  "name": "Payroll Journal Assistant",
+  "version": "1.0.0",
+  "publisher": { "id": "sprk", "name": "SPRK" },
+  "description": "Map generic or Gusto general-ledger payroll lines to SPRK accounts and propose reviewed journal entries.",
+  "runtime": { "minAppVersion": "0.4.29", "maxAppVersion": "0.999.999" },
+  "capabilities": {
+    "workflows.run": { "required": true },
+    "records.query": { "required": true },
+    "files.ingest": { "required": true, "formats": ["csv", "xlsx"] },
+    "surfaces.contribute": {
+      "required": true,
+      "surfaces": ["plugin_pages.header.actions"]
+    },
+    "accounting.journal.propose": { "required": true }
+  },
+  "extensionManifests": [
+    { "extensionId": "payroll-account-mappings", "path": "extensions/payroll-account-mappings.json" },
+    { "extensionId": "payroll-journal-workflows", "path": "extensions/payroll-journal-workflows.json" }
+  ]
+}
