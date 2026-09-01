@@ -1,0 +1,315 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "modern-service-invoice",
+  "type": "document_template",
+  "name": "Modern Service Invoice",
+  "version": "1.0.0",
+  "description": "A navy-accented service invoice with customer details, a compact line table, and a prominent balance due.",
+  "targets": {
+    "companyScoped": true
+  },
+  "definition": {
+    "definitionVersion": 1,
+    "documents": [
+      {
+        "documentId": "modern-service-invoice",
+        "label": "Modern Service Invoice",
+        "description": "A compact service-focused alternative to the standard invoice.",
+        "documentType": "invoice",
+        "source": {
+          "kind": "native",
+          "sourceId": "invoices",
+          "sourceVersion": "1"
+        },
+        "page": {
+          "mode": "flow",
+          "size": "letter",
+          "orientation": "portrait",
+          "marginMm": 12
+        },
+        "filename": "modern-service-invoice",
+        "body": [
+          {
+            "type": "row",
+            "style": {
+              "gapMm": 8
+            },
+            "children": [
+              {
+                "type": "stack",
+                "style": {
+                  "widthPercent": 62,
+                  "gapMm": 1
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "SERVICE INVOICE",
+                    "style": {
+                      "fontSizePt": 24,
+                      "fontWeight": "bold",
+                      "color": "#17365D"
+                    }
+                  },
+                  {
+                    "type": "field",
+                    "path": "company.companyName",
+                    "style": {
+                      "fontSizePt": 13,
+                      "fontWeight": "bold"
+                    }
+                  },
+                  {
+                    "type": "field",
+                    "path": "company.address1",
+                    "style": {
+                      "hideWhenEmpty": true
+                    }
+                  },
+                  {
+                    "type": "field",
+                    "path": "company.email",
+                    "style": {
+                      "hideWhenEmpty": true
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "stack",
+                "style": {
+                  "widthPercent": 38,
+                  "gapMm": 2,
+                  "paddingMm": 4,
+                  "background": "#EAF0F7",
+                  "borderColor": "#17365D"
+                },
+                "children": [
+                  {
+                    "type": "field",
+                    "path": "invoice.invNumber",
+                    "label": "Invoice"
+                  },
+                  {
+                    "type": "field",
+                    "path": "invoice.date",
+                    "label": "Invoice date",
+                    "format": "date"
+                  },
+                  {
+                    "type": "field",
+                    "path": "invoice.dueDate",
+                    "label": "Due date",
+                    "format": "date",
+                    "style": {
+                      "hideWhenEmpty": true
+                    }
+                  },
+                  {
+                    "type": "field",
+                    "path": "invoice.status",
+                    "label": "Status"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "spacer",
+            "heightMm": 7
+          },
+          {
+            "type": "divider",
+            "style": {
+              "borderColor": "#17365D"
+            }
+          },
+          {
+            "type": "spacer",
+            "heightMm": 5
+          },
+          {
+            "type": "text",
+            "text": "BILL TO",
+            "style": {
+              "fontSizePt": 9,
+              "fontWeight": "bold",
+              "color": "#4B6584"
+            }
+          },
+          {
+            "type": "field",
+            "path": "customer.name",
+            "style": {
+              "fontSizePt": 13,
+              "fontWeight": "bold"
+            }
+          },
+          {
+            "type": "field",
+            "path": "customer.company",
+            "style": {
+              "hideWhenEmpty": true
+            }
+          },
+          {
+            "type": "field",
+            "path": "customer.address1",
+            "style": {
+              "hideWhenEmpty": true
+            }
+          },
+          {
+            "type": "field",
+            "path": "customer.email",
+            "style": {
+              "hideWhenEmpty": true
+            }
+          },
+          {
+            "type": "spacer",
+            "heightMm": 7
+          },
+          {
+            "type": "table",
+            "itemsPath": "invoice.lines",
+            "columns": [
+              {
+                "path": "sku",
+                "label": "Service",
+                "widthPercent": 18
+              },
+              {
+                "path": "description",
+                "label": "Description",
+                "widthPercent": 42
+              },
+              {
+                "path": "quantity",
+                "label": "Qty",
+                "format": "number",
+                "widthPercent": 10
+              },
+              {
+                "path": "unitPrice",
+                "label": "Rate",
+                "format": "money",
+                "widthPercent": 15
+              },
+              {
+                "path": "extendedAmount",
+                "label": "Amount",
+                "format": "money",
+                "widthPercent": 15
+              }
+            ],
+            "style": {
+              "borderColor": "#AAB7C4"
+            }
+          },
+          {
+            "type": "spacer",
+            "heightMm": 7
+          },
+          {
+            "type": "row",
+            "style": {
+              "gapMm": 8
+            },
+            "children": [
+              {
+                "type": "stack",
+                "style": {
+                  "widthPercent": 60,
+                  "gapMm": 2
+                },
+                "children": [
+                  {
+                    "type": "field",
+                    "path": "invoice.memo",
+                    "label": "Notes",
+                    "style": {
+                      "hideWhenEmpty": true
+                    }
+                  },
+                  {
+                    "type": "field",
+                    "path": "invoice.terms",
+                    "label": "Terms",
+                    "style": {
+                      "hideWhenEmpty": true
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "stack",
+                "style": {
+                  "widthPercent": 40,
+                  "gapMm": 2,
+                  "paddingMm": 4,
+                  "background": "#17365D",
+                  "color": "#FFFFFF"
+                },
+                "children": [
+                  {
+                    "type": "field",
+                    "path": "invoice.subtotal",
+                    "label": "Subtotal",
+                    "format": "money",
+                    "style": {
+                      "align": "right"
+                    }
+                  },
+                  {
+                    "type": "field",
+                    "path": "invoice.tax",
+                    "label": "Tax",
+                    "format": "money",
+                    "style": {
+                      "align": "right"
+                    }
+                  },
+                  {
+                    "type": "field",
+                    "path": "invoice.total",
+                    "label": "Invoice total",
+                    "format": "money",
+                    "style": {
+                      "align": "right",
+                      "fontWeight": "bold"
+                    }
+                  },
+                  {
+                    "type": "field",
+                    "path": "invoice.balance",
+                    "label": "BALANCE DUE",
+                    "format": "money",
+                    "style": {
+                      "align": "right",
+                      "fontSizePt": 15,
+                      "fontWeight": "bold"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "spacer",
+            "heightMm": 8
+          },
+          {
+            "type": "text",
+            "text": "Thank you for your business.",
+            "style": {
+              "align": "center",
+              "fontWeight": "bold",
+              "color": "#17365D"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
