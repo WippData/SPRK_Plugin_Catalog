@@ -1,0 +1,3 @@
+Profile,Source type,Source description,SPRK account ID,Active,Expected side,Notes
+generic,Payroll expense,Gross wages,REPLACE-WITH-ACTIVE-SPRK-ACCOUNT-ID,true,debit,Fictional example only
+gusto,RegularWages,Regular Wages,REPLACE-WITH-ACTIVE-SPRK-ACCOUNT-ID,true,debit,Match the exact values in the exported file

@@ -2,16 +2,10 @@
 
 Official free-plugin catalog for SPRK, published from
 [`WippData/SPRK_Plugin_Catalog`](https://github.com/WippData/SPRK_Plugin_Catalog).
-Existing apps continue to use the legacy-safe catalog URL:
+All supported apps use one canonical catalog URL:
 
 ```text
 https://raw.githubusercontent.com/WippData/SPRK_Plugin_Catalog/main/catalog.json
-```
-
-Desktop app 0.4.28 and newer use the versioned feed that includes Accounting Schedules:
-
-```text
-https://raw.githubusercontent.com/WippData/SPRK_Plugin_Catalog/main/catalog-v0.4.28.json
 ```
 
 This repository intentionally has one publisher identity:
@@ -31,8 +25,8 @@ the catalog or current installer supports schema `1.0`.
 ## Repository layout
 
 - `catalog.source.json`: publisher-maintained release metadata and package source directories.
-- `catalog.json`: generated legacy-safe public catalog consumed by older SPRK apps.
-- `catalog-v0.4.28.json`: generated app catalog consumed by desktop 0.4.28 and newer.
+- `catalog.json`: generated public catalog consumed by SPRK apps. Each release's
+  `minAppVersion` keeps unsupported plugins out of older app versions.
 - `schemas/catalog.schema.json`: public JSON Schema for `catalog.json`.
 - `scripts/catalog.py`: dependency-free validation and deterministic ZIP builder.
 - `scripts/sprkql.py`: restricted SQL-like authoring helper for native table reports.
@@ -41,8 +35,16 @@ the catalog or current installer supports schema `1.0`.
 - `tests/`: developer-tooling and documentation contract tests.
 - `dist/`: generated release assets; each archive has `manifest.json` at its root.
 - `month-end-bank-cleanup/` and `revenue-analysis/`: cataloged schema `2` sources.
+- `payroll-journal-assistant/`: app-0.4.29 Payroll Journal Assistant source with
+  reviewed generic and Gusto-shaped journal imports.
 - `on-demand-weather/`: preserved, uncataloged schema `2` demonstration source.
 - `employees/`: preserved, uncataloged legacy schema `1.0` source.
+
+Optional plugin-level `screenshots` metadata in the generated catalog contains a raw GitHub
+content `url`, accessible `alt` text, and an optional display `caption`. Screenshot files
+remain repository-hosted under each source plugin's `screenshots/` directory and are
+deliberately excluded from the installable ZIP, so clients can fetch image bytes only when
+a user opens a screenshot view.
 
 Pre-existing ZIPs at the repository root are preserved staging artifacts, not release
 assets. Only the deterministic ZIPs generated under `dist/` are referenced by the catalog
@@ -89,10 +91,11 @@ and exercise the restricted SPRKQL compiler with:
 python3 -m unittest discover -s tests -p 'test*.py'
 ```
 
-`build` validates each package, verifies every declared extension SHA-256, creates sorted
-ZIPs with fixed timestamps and file modes, computes each asset SHA-256, and regenerates
-both catalog feeds. `check` recreates those outputs in memory and fails if either committed
-catalog or any ZIP bytes are stale.
+`build` validates each package and screenshot reference, verifies every declared extension
+SHA-256, creates sorted ZIPs with fixed timestamps and file modes, computes each asset
+SHA-256, and regenerates the catalog. Screenshot directories are not packaged.
+`check` recreates those outputs in memory and fails if either committed catalog or any ZIP
+bytes are stale.
 
 ## Publisher workflow
 
@@ -103,7 +106,7 @@ catalog or any ZIP bytes are stale.
 3. Update the plugin version and its entry in `catalog.source.json`, including release notes
    and `publishedAt`.
 4. Run `python3 scripts/catalog.py build` and `python3 scripts/catalog.py check`.
-5. Review the manifest, both generated catalog feeds, asset filename, and reported SHA-256.
+5. Review the manifest, generated catalog feed, asset filename, and reported SHA-256.
 6. Commit the source, catalog, and deterministic ZIP together, then merge to `main`.
 7. Create one GitHub release whose tag is `<plugin-id>-v<version>` and upload only the
    matching `dist/<plugin-id>-<version>.zip`.
