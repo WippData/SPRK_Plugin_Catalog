@@ -49,6 +49,9 @@ between them before installation or enablement.
   company-scoped, and cannot request direct secret or network access.
 - An existing-page-actions extension has at least one `run_action`; each needs
   an `action` reference to a declared manual action.
+- A document-template extension is company-scoped, uses definition version 1,
+  contains only bounded host-rendered nodes and registered native source paths,
+  and requires `capabilities.documents.render.required` with exact output grants.
 - A new report may set `definitionVersion: "2"` and retains `report`, `data`,
   `views`, and optional `customization`. It needs exactly one granted semantic
   source, explicit basis metadata, and at least one table view.

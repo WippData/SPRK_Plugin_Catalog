@@ -15,6 +15,7 @@ New plugins should be assembled from these host-rendered building blocks.
 | `report` | Native table reports and company-shared saved views | Use the executable `data`/table-`views` shape, exact semantic-source grants, declared filters/groups/measures, and bounded customization flags. |
 | `accounting_schedule` | Host-controlled accounting schedule proposals | Requires balanced host posting and full accounting safeguards. |
 | `expand_page` | Approved additions to an existing plugin page | Confirm the target host surface before depending on it. |
+| `document_template` | Trusted alternate layouts for registered native documents | Declare `documents.render`; JSON nodes are host-rendered and do not mutate or post the source record. |
 
 ## Standard authenticated integration
 
@@ -66,6 +67,16 @@ Pair a reviewed manual journal-proposal workflow with a headless
 `$event.journals`, and end with `records.update` to a user-accessible same-plugin
 records resource. The host queues the event only after exact-hash canonical
 commit. See [Journal-Commit Event Workflows](event-driven-workflows.md).
+
+## Standard native document template
+
+Use a company-scoped `document_template` extension with
+`definitionVersion: 1`, a registered native source/version, and only the
+bounded document nodes in the typed field reference. Grant the exact trusted
+outputs through `documents.render`. SPRK resolves the record, validates every
+field path against the source contract, and renders preview/PDF/print output in
+the host. See the uncataloged `alternate-invoice-layout-demo` at the repository
+root for a complete invoice example.
 
 ## Standard bank-import integration
 

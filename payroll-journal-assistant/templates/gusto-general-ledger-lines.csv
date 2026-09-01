@@ -1,0 +1,6 @@
+Account Type,Account Description,Job,Debit,Credit
+RegularWages,Regular Wages,Operations,2000.00,
+EmployerTax,Social Security - employer tax,Operations,124.00,
+EmployerTax,Medicare - employer tax,Operations,29.00,
+DebitNetPay,Debit net pay,,,1700.00
+DebitTax,Debit tax,,,453.00

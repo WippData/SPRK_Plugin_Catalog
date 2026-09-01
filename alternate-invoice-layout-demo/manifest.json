@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "alternate-invoice-layout-demo",
+  "name": "Alternate Invoice Layout Demo",
+  "version": "1.0.0",
+  "publisher": {
+    "id": "sprk",
+    "name": "SPRK"
+  },
+  "description": "Capability proof for a code-authored invoice document template with a layout distinct from SPRK's default invoice.",
+  "runtime": {
+    "minAppVersion": "1.0.0"
+  },
+  "capabilities": {
+    "documents.render": {
+      "required": true,
+      "outputs": [
+        "preview",
+        "pdf",
+        "print"
+      ]
+    }
+  },
+  "extensionManifests": [
+    {
+      "extensionId": "modern-service-invoice",
+      "path": "extensions/modern-service-invoice.json"
+    }
+  ]
+}

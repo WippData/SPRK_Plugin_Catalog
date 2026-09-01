@@ -19,7 +19,7 @@ The reference covers fields authors may place in `manifest.json` or an extension
 
 | Type | Allowed values |
 | --- | --- |
-| `ExtensionType` | `new_page`, `expand_page`, `accounting_schedule`, `report`, `connector`, `actions`, `workflow`, `plugin_configuration`, `existing_page_actions` |
+| `ExtensionType` | `new_page`, `expand_page`, `accounting_schedule`, `report`, `connector`, `actions`, `workflow`, `plugin_configuration`, `existing_page_actions`, `document_template` |
 | `DataType` | `string`, `number`, `boolean`, `date`, `datetime`, `currency` |
 | `PluginHTTPMethod` | `GET`, `POST`, `PUT`, `PATCH`, `DELETE` |
 | `PluginBindingSourceCollection` | `accounts`, `customers`, `items`, `vendors` |
@@ -97,6 +97,7 @@ All properties are typed objects. They may be omitted in JSON because missing ob
 | `events.subscribe` | `PluginEventsSubscribeCapability` | C | Required for `accounting.journals.committed`. |
 | `accounting.schedules.manage` | `{required: boolean}` | C | Required by public v2 accounting schedules. |
 | `accounting.journal.propose` | `{required: boolean}` | C | Required for workflow journal previews and host-reviewed schedule journal proposals; posting remains host-owned and direct GL writes are never granted. |
+| `documents.render` | `PluginDocumentsRenderCapability` | C | Required by a `document_template`; grants only trusted host preview, PDF, and print outputs. |
 
 ### Capability submodels
 
@@ -114,6 +115,8 @@ All properties are typed objects. They may be omitted in JSON because missing ob
 |  | `formats` | string[] | C | Non-empty unique subset of `csv`, `xlsx` when required. Must cover every file input. |
 | `PluginEventsSubscribeCapability` | `required` | boolean | R | True when a journal-commit event workflow is declared. |
 |  | `events` | string[] | C | When required, exactly the unique supported event `accounting.journals.committed`. |
+| `PluginDocumentsRenderCapability` | `required` | boolean | R | True when a document-template extension is declared. |
+|  | `outputs` | string[] | C | Non-empty unique subset of `preview`, `pdf`, `print` when required. |
 | `PluginDataCapability` | `required` | boolean | R | True when a `data.*` step is used. |
 |  | `sprk` | `PluginDataEntityGrant[]` | C | Non-empty when required. |
 | `PluginReviewCapability` | `required` | boolean | R | True when `review.import` or `review.propose` is used. |
@@ -182,6 +185,57 @@ Every new plugin that executes HTTP must explicitly declare `api.execute` with t
 | `PluginRecordField` | `fieldId` | string | R | Plugin identifier; unique. Host-owned IDs are forbidden: `id`, `recordId`, `companyId`, `pluginId`, `extensionId`, `resourceId`, `schemaVersion`, `createdAt`, `updatedAt`. |
 |  | `dataType` | `DataType` | R | Closed enum. |
 |  | `required` | boolean | O | Whether each record must contain the field. |
+
+## Trusted document templates
+
+A `document_template` is company-scoped JSON rendered by SPRK. It cannot carry
+HTML, scripts, executable assets, direct database access, or an independent
+posting path. The current version uses registered native source contracts and
+does not change the source transaction or its accounting impact.
+
+### `DocumentDefinition` and template
+
+| Model | Field | JSON type | Req. | Constraints |
+| --- | --- | --- | --- | --- |
+| `DocumentDefinition` | `definitionVersion` | integer | R | Must be `1`. |
+|  | `documents` | `DocumentTemplate[]` | R | 1–20 templates. |
+| `DocumentTemplate` | `documentId` | string | R | Stable plugin identifier; unique in the definition. |
+|  | `label` | string | R | 1–120 characters. |
+|  | `description` | string | O | At most 500 characters. |
+|  | `documentType` | string | R | Must match its registered source: `invoice`, `bill`, `company`, `customer`, `item`, or `vendor`. |
+|  | `source` | `DocumentSource` | R | Registered native source and exact source version. |
+|  | `page` | `DocumentPage` | R | Host page layout settings. |
+|  | `body` | `DocumentNode[]` | R | 1–100 top-level nodes; 300 nodes total and at most 8 levels deep. |
+|  | `filename` | string | O | At most 100 characters; path separators, control characters, and reserved filename characters are rejected. |
+| `DocumentSource` | `kind` | string | R | Must be `native`. |
+|  | `sourceId` | string | R | Version-1 sources: `invoices`, `bills`, `companies`, `customers`, `items`, or `vendors`. |
+|  | `sourceVersion` | string | R | Must be `"1"`. |
+| `DocumentPage` | `mode` | string | R | `flow` or `fixed`. Fixed mode requires a frame on every node; flow mode forbids frames. |
+|  | `size` | string | R | `letter`, `a4`, or `legal`. |
+|  | `orientation` | string | O | `portrait` or `landscape`. |
+|  | `marginMm` | number | O | 0–50. |
+
+### Document nodes
+
+| Field | JSON type | Req. | Constraints |
+| --- | --- | --- | --- |
+| `type` | string | R | `stack`, `row`, `text`, `field`, `table`, `divider`, or `spacer`. |
+| `text` | string | C | Required for `text`; 1–2,000 characters. |
+| `path` | string | C | Required for `field`; must be advertised by the selected source contract. |
+| `label` | string | O | Display label; table-column labels are 1–80 characters. |
+| `format` | string | O | `text`, `date`, `money`, or `number`. |
+| `children` | `DocumentNode[]` | C | Required only for `stack` and `row`; 1–50 children. |
+| `itemsPath` | string | C | Required for `table`; currently `invoice.lines` or `bill.lines` for the matching source. |
+| `columns` | `DocumentTableColumn[]` | C | Required for `table`; 1–12 source-advertised line fields. |
+| `style` | `DocumentStyle` | O | Bounded typography, alignment, six-digit hex colors, spacing, width, and empty-value visibility. |
+| `frame` | `DocumentFrame` | C | Required only in fixed mode; non-negative position and positive dimensions up to 500mm. |
+| `heightMm` | number | O | 0–100; used by spacer nodes. |
+
+Styles allow `fontSizePt` (0–72), `fontWeight` (`normal` or `bold`), `align`
+(`left`, `center`, or `right`), `color`, `background`, `borderColor`,
+`paddingMm` and `gapMm` (0–25), `widthPercent` (0–100), and
+`hideWhenEmpty`. Table columns declare `path`, `label`, optional `format`, and
+optional `widthPercent`.
 
 ## Shared page, field, action, and import models
 
