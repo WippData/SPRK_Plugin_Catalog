@@ -15,14 +15,15 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_PATH = ROOT / "catalog.source.json"
 CATALOG_PATH = ROOT / "catalog.json"
-APP_CATALOG_PATH = ROOT / "catalog-v0.4.28.json"
 DIST_DIR = ROOT / "dist"
 SCHEMA_REF = "schemas/catalog.schema.json"
 REPOSITORY = "WippData/SPRK_Plugin_Catalog"
+RAW_CONTENT_BASE_URL = f"https://raw.githubusercontent.com/{REPOSITORY}/main"
 OFFICIAL_PUBLISHER = {"id": "sprk", "name": "SPRK"}
 SEMVER = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 SHA256 = re.compile(r"^[a-f0-9]{64}$")
+SUPPORTED_SCREENSHOT_SUFFIXES = {".jpeg", ".jpg", ".png", ".webp"}
 ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 
 
@@ -67,6 +68,8 @@ def plugin_files(plugin_dir: Path) -> list[tuple[PurePosixPath, Path]]:
         if not path.is_file() or path.name == ".DS_Store":
             continue
         relative = PurePosixPath(path.relative_to(plugin_dir).as_posix())
+        if relative.parts[0] == "screenshots":
+            continue
         files.append((relative, path))
     files.sort(key=lambda item: item[0].as_posix())
     if not files or files[0][0].as_posix() == "":
@@ -171,6 +174,10 @@ def build_outputs() -> tuple[dict, dict[str, bytes]]:
             raise CatalogError(f"plugin source directory does not exist: {source_dir}")
         manifest, archive_bytes = validate_plugin(plugin_dir, entry)
         plugin_id = manifest["pluginId"]
+        if source_dir.as_posix() != plugin_id:
+            raise CatalogError(
+                f"{plugin_id}.sourceDirectory must match its pluginId exactly"
+            )
         if plugin_id in seen_plugins:
             raise CatalogError(f"catalog contains duplicate pluginId {plugin_id}")
         seen_plugins.add(plugin_id)
@@ -200,6 +207,41 @@ def build_outputs() -> tuple[dict, dict[str, bytes]]:
             raise CatalogError(f"{plugin_id}.free must be true in the official free catalog")
         if "license" in entry:
             plugin["license"] = require_string(entry.get("license"), f"{plugin_id}.license")
+        if "screenshots" in entry:
+            screenshots = entry.get("screenshots")
+            if not isinstance(screenshots, list) or not screenshots:
+                raise CatalogError(f"{plugin_id}.screenshots must be a non-empty array")
+            plugin_screenshots: list[dict[str, str]] = []
+            seen_screenshot_paths: set[str] = set()
+            for screenshot_index, screenshot in enumerate(screenshots):
+                field = f"{plugin_id}.screenshots[{screenshot_index}]"
+                if not isinstance(screenshot, dict):
+                    raise CatalogError(f"{field} must be an object")
+                relative = safe_relative_path(screenshot.get("path"), f"{field}.path")
+                if relative.parts[0] != "screenshots":
+                    raise CatalogError(f"{field}.path must be under screenshots/")
+                if relative.suffix.lower() not in SUPPORTED_SCREENSHOT_SUFFIXES:
+                    raise CatalogError(
+                        f"{field}.path must use one of "
+                        f"{sorted(SUPPORTED_SCREENSHOT_SUFFIXES)}"
+                    )
+                relative_text = relative.as_posix()
+                if relative_text in seen_screenshot_paths:
+                    raise CatalogError(f"{plugin_id}.screenshots contains duplicate path {relative_text}")
+                seen_screenshot_paths.add(relative_text)
+                screenshot_path = plugin_dir.joinpath(*relative.parts)
+                if not screenshot_path.is_file():
+                    raise CatalogError(f"missing screenshot: {source_dir}/{relative}")
+                screenshot_metadata = {
+                    "url": f"{RAW_CONTENT_BASE_URL}/{source_dir.as_posix()}/{relative_text}",
+                    "alt": require_string(screenshot.get("alt"), f"{field}.alt"),
+                }
+                if "caption" in screenshot:
+                    screenshot_metadata["caption"] = require_string(
+                        screenshot.get("caption"), f"{field}.caption"
+                    )
+                plugin_screenshots.append(screenshot_metadata)
+            plugin["screenshots"] = plugin_screenshots
         catalog_plugins.append(plugin)
         archives[file_name] = archive_bytes
 
@@ -244,6 +286,32 @@ def validate_catalog(catalog: dict) -> None:
         require_string(plugin.get("summary"), f"{plugin_id}.summary")
         validate_https(plugin.get("sourceUrl"), f"{plugin_id}.sourceUrl")
         validate_https(plugin.get("supportUrl"), f"{plugin_id}.supportUrl")
+        screenshots = plugin.get("screenshots")
+        if screenshots is not None:
+            if not isinstance(screenshots, list) or not screenshots:
+                raise CatalogError(f"{plugin_id}.screenshots must be a non-empty array")
+            seen_screenshot_urls: set[str] = set()
+            for index, screenshot in enumerate(screenshots):
+                field = f"{plugin_id}.screenshots[{index}]"
+                if not isinstance(screenshot, dict):
+                    raise CatalogError(f"{field} must be an object")
+                url = require_string(screenshot.get("url"), f"{field}.url")
+                expected_url_prefix = f"{RAW_CONTENT_BASE_URL}/{plugin_id}/screenshots/"
+                if not url.startswith(expected_url_prefix):
+                    raise CatalogError(
+                        f"{field}.url must use the official raw GitHub path for {plugin_id}"
+                    )
+                if PurePosixPath(url).suffix.lower() not in SUPPORTED_SCREENSHOT_SUFFIXES:
+                    raise CatalogError(
+                        f"{field}.url must use one of "
+                        f"{sorted(SUPPORTED_SCREENSHOT_SUFFIXES)}"
+                    )
+                if url in seen_screenshot_urls:
+                    raise CatalogError(f"{plugin_id}.screenshots contains duplicate URL {url}")
+                seen_screenshot_urls.add(url)
+                require_string(screenshot.get("alt"), f"{field}.alt")
+                if "caption" in screenshot:
+                    require_string(screenshot.get("caption"), f"{field}.caption")
         releases = plugin.get("releases")
         if not isinstance(releases, list) or not releases:
             raise CatalogError(f"{plugin_id}.releases must be a non-empty array")
@@ -268,45 +336,22 @@ def catalog_bytes(catalog: dict) -> bytes:
     return (json.dumps(catalog, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
 
 
-def legacy_catalog(catalog: dict) -> dict:
-    legacy = dict(catalog)
-    legacy["plugins"] = []
-    for plugin in catalog["plugins"]:
-        releases = [
-            release
-            for release in plugin["releases"]
-            if not release["minAppVersion"].startswith("0.")
-        ]
-        if releases:
-            legacy["plugins"].append({**plugin, "releases": releases})
-    validate_catalog(legacy)
-    return legacy
-
-
 def build() -> None:
     catalog, archives = build_outputs()
-    legacy = legacy_catalog(catalog)
     DIST_DIR.mkdir(parents=True, exist_ok=True)
-    CATALOG_PATH.write_bytes(catalog_bytes(legacy))
-    APP_CATALOG_PATH.write_bytes(catalog_bytes(catalog))
+    CATALOG_PATH.write_bytes(catalog_bytes(catalog))
     for file_name, contents in archives.items():
         (DIST_DIR / file_name).write_bytes(contents)
     print(f"wrote {CATALOG_PATH.relative_to(ROOT)}")
-    print(f"wrote {APP_CATALOG_PATH.relative_to(ROOT)}")
     for file_name in sorted(archives):
         print(f"wrote dist/{file_name} sha256={sha256_bytes(archives[file_name])}")
 
 
 def check() -> None:
     catalog, archives = build_outputs()
-    expected_legacy_catalog = catalog_bytes(legacy_catalog(catalog))
-    expected_app_catalog = catalog_bytes(catalog)
-    if not CATALOG_PATH.is_file() or CATALOG_PATH.read_bytes() != expected_legacy_catalog:
+    expected_catalog = catalog_bytes(catalog)
+    if not CATALOG_PATH.is_file() or CATALOG_PATH.read_bytes() != expected_catalog:
         raise CatalogError("catalog.json is missing or stale; run: python3 scripts/catalog.py build")
-    if not APP_CATALOG_PATH.is_file() or APP_CATALOG_PATH.read_bytes() != expected_app_catalog:
-        raise CatalogError(
-            "catalog-v0.4.28.json is missing or stale; run: python3 scripts/catalog.py build"
-        )
     actual_assets = {path.name for path in DIST_DIR.glob("*.zip")} if DIST_DIR.is_dir() else set()
     expected_assets = set(archives)
     if actual_assets != expected_assets:
@@ -322,8 +367,8 @@ def check() -> None:
             if "manifest.json" not in names or any(name.startswith("/") for name in names):
                 raise CatalogError(f"dist/{file_name} does not contain a root manifest.json")
     print(
-        f"catalogs valid: {len(legacy_catalog(catalog)['plugins'])} legacy plugins, "
-        f"{len(catalog['plugins'])} app plugins, {len(archives)} deterministic ZIPs"
+        f"catalog valid: {len(catalog['plugins'])} plugins, "
+        f"{len(archives)} deterministic ZIPs"
     )
     for file_name in sorted(archives):
         print(f"dist/{file_name} sha256={sha256_bytes(archives[file_name])}")

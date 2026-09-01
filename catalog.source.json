@@ -13,6 +13,33 @@
       "free": true,
       "sourceUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/tree/main/accounting-schedules",
       "supportUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/issues",
+      "screenshots": [
+        {
+          "path": "screenshots/fixed-assets-overview.jpg",
+          "alt": "Fixed Assets overview with schedule totals and month-end actions",
+          "caption": "Review fixed asset schedule totals and month-end status."
+        },
+        {
+          "path": "screenshots/fixed-assets-schedule-lines.jpg",
+          "alt": "Fixed Assets schedule lines with calculated monthly depreciation",
+          "caption": "Inspect the calculated depreciation schedule line by line."
+        },
+        {
+          "path": "screenshots/fixed-assets-calculated-schedule.jpg",
+          "alt": "Calculated fixed asset schedule ready for month-end review",
+          "caption": "Calculate the schedule before preparing its journal."
+        },
+        {
+          "path": "screenshots/fixed-assets-posting-review.jpg",
+          "alt": "Journal posting review for a fixed asset schedule",
+          "caption": "Review the exact balanced journal before posting."
+        },
+        {
+          "path": "screenshots/fixed-assets-journal-posted.jpg",
+          "alt": "Fixed asset journal successfully posted after review",
+          "caption": "Confirm the reviewed journal was posted successfully."
+        }
+      ],
       "releaseNotes": "Initial official release of Accounting Schedules with equal-month month-end calculations, opening recognition cutoffs, reviewed CSV/XLSX draft imports, and exact-preview journal posting.",
       "publishedAt": "2026-08-28T00:00:00Z"
     },
@@ -31,6 +58,28 @@
       "free": true,
       "sourceUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/tree/main/payroll-journal-assistant",
       "supportUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/issues",
+      "screenshots": [
+        {
+          "path": "screenshots/gusto-account-mappings.jpg",
+          "alt": "Reusable Gusto payroll account mappings in SPRK",
+          "caption": "Save reusable mappings from payroll labels to SPRK accounts."
+        },
+        {
+          "path": "screenshots/gusto-payroll-review.jpg",
+          "alt": "Gusto payroll lines ready for account mapping and review",
+          "caption": "Review imported Gusto lines and resolve their account mappings."
+        },
+        {
+          "path": "screenshots/gusto-journal-preview.jpg",
+          "alt": "Balanced payroll journal preview before posting",
+          "caption": "Preview the balanced payroll journal before posting."
+        },
+        {
+          "path": "screenshots/gusto-journal-posted.jpg",
+          "alt": "Payroll journal successfully posted after review",
+          "caption": "Confirm the payroll journal was posted successfully."
+        }
+      ],
       "releaseNotes": "Initial official release of Payroll Journal Assistant with reusable account mappings, generic and Gusto-shaped CSV/XLSX inputs, host-owned line review, exact balanced journal preview, and canonical posting.",
       "publishedAt": "2026-08-29T00:00:00Z"
     },
