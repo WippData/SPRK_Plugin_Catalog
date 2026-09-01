@@ -580,6 +580,9 @@ def bundle_errors(manifest: dict[str, Any], extensions: dict[str, dict[str, Any]
                 actions[(extension_id, action.get("actionId"))] = action
         elif ext_type == "workflow":
             errors.extend(workflow_bundle_errors(extension_id, extension, manifest, extensions))
+        elif ext_type == "document_template":
+            if not capability_required(manifest, "documents.render"):
+                errors.append(f"extensions.{extension_id}: document template requires capabilities.documents.render.required")
         elif ext_type == "accounting_schedule" and definition.get("definitionVersion") == "2":
             for capability in ("accounting.schedules.manage", "accounting.journal.propose"):
                 if not capability_required(manifest, capability):

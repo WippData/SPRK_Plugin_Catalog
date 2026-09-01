@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "plugin-developer-docs" / "plugin-manifest.schema.json"
 EXAMPLES = ROOT / "plugin-developer-docs" / "examples"
 ACCOUNTING_SCHEDULES = ROOT / "accounting-schedules"
+DOCUMENT_TEMPLATE_DEMO = ROOT / "alternate-invoice-layout-demo"
 SPEC = importlib.util.spec_from_file_location(
     "validate_plugin_folder", ROOT / "scripts" / "validate_plugin_folder.py"
 )
@@ -43,6 +44,30 @@ class PluginFolderValidatorTests(unittest.TestCase):
         for folder in sorted(path for path in EXAMPLES.iterdir() if path.is_dir()):
             with self.subTest(folder=folder.name):
                 self.assertEqual(self.validate(folder), [])
+
+    def test_document_template_demo_is_valid_and_requires_exact_render_grant(self) -> None:
+        self.assertEqual(self.validate(DOCUMENT_TEMPLATE_DEMO), [])
+
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary) / DOCUMENT_TEMPLATE_DEMO.name
+            shutil.copytree(DOCUMENT_TEMPLATE_DEMO, folder)
+            self.update_json(
+                folder / "manifest.json",
+                lambda manifest: manifest["capabilities"].pop("documents.render"),
+            )
+            self.assertIn(
+                "document template requires capabilities.documents.render.required",
+                "\n".join(self.validate(folder)),
+            )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary) / DOCUMENT_TEMPLATE_DEMO.name
+            shutil.copytree(DOCUMENT_TEMPLATE_DEMO, folder)
+            self.update_json(
+                folder / "manifest.json",
+                lambda manifest: manifest["capabilities"]["documents.render"]["outputs"].append("html"),
+            )
+            self.assertIn("must be one of", "\n".join(self.validate(folder)))
 
     def test_rejects_nested_capabilities_invalid_input_and_invented_command(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

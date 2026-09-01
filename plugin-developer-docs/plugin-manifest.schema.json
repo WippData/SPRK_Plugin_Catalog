@@ -58,7 +58,8 @@
         "files.ingest": { "$ref": "#/$defs/FilesIngestCapability" },
         "events.subscribe": { "$ref": "#/$defs/EventsSubscribeCapability" },
         "accounting.schedules.manage": { "$ref": "#/$defs/RequiredCapability" },
-        "accounting.journal.propose": { "$ref": "#/$defs/RequiredCapability" }
+        "accounting.journal.propose": { "$ref": "#/$defs/RequiredCapability" },
+        "documents.render": { "$ref": "#/$defs/DocumentsRenderCapability" }
       }
     },
     "RequiredCapability": {
@@ -76,6 +77,12 @@
       "properties": { "required": { "type": "boolean" }, "events": { "type": "array", "uniqueItems": true, "items": { "const": "accounting.journals.committed" } } },
       "if": { "properties": { "required": { "const": true } }, "required": ["required"] },
       "then": { "required": ["events"], "properties": { "events": { "contains": { "const": "accounting.journals.committed" } } } }
+    },
+    "DocumentsRenderCapability": {
+      "type": "object", "additionalProperties": false, "required": ["required"],
+      "properties": { "required": { "type": "boolean" }, "outputs": { "type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true, "items": { "enum": ["preview", "pdf", "print"] } } },
+      "if": { "properties": { "required": { "const": true } }, "required": ["required"] },
+      "then": { "required": ["outputs"] }
     },
     "InternetAccessCapability": {
       "type": "object", "additionalProperties": false, "required": ["required"],
@@ -143,7 +150,7 @@
       "required": ["schemaVersion", "extensionId", "type", "name", "version", "definition"],
       "properties": {
         "schemaVersion": { "const": "2" }, "extensionId": { "$ref": "#/$defs/Identifier" },
-        "type": { "enum": ["new_page", "expand_page", "accounting_schedule", "report", "connector", "actions", "workflow", "plugin_configuration", "existing_page_actions"] },
+        "type": { "enum": ["new_page", "expand_page", "accounting_schedule", "report", "connector", "actions", "workflow", "plugin_configuration", "existing_page_actions", "document_template"] },
         "name": { "$ref": "#/$defs/NonBlankString" }, "version": { "$ref": "#/$defs/NonBlankString" }, "description": { "type": "string" },
         "targets": { "$ref": "#/$defs/ExtensionTargets" }, "permissions": { "$ref": "#/$defs/ExtensionPermissions" },
         "resources": { "type": "array", "items": { "$ref": "#/$defs/PluginResourceManifest" } }, "definition": {}
@@ -157,7 +164,8 @@
         { "if": { "properties": { "type": { "const": "actions" } } }, "then": { "properties": { "definition": { "$ref": "#/$defs/ActionsDefinition" } } } },
         { "if": { "properties": { "type": { "const": "workflow" } } }, "then": { "properties": { "definition": { "$ref": "#/$defs/WorkflowDefinition" } } } },
         { "if": { "properties": { "type": { "const": "plugin_configuration" } } }, "then": { "required": ["targets", "resources"], "properties": { "targets": { "required": ["companyScoped"], "properties": { "companyScoped": { "const": true } } }, "resources": { "minItems": 1, "maxItems": 1 }, "definition": { "$ref": "#/$defs/PluginConfigurationDefinition" } } } },
-        { "if": { "properties": { "type": { "const": "existing_page_actions" } } }, "then": { "properties": { "definition": { "$ref": "#/$defs/ExistingPageActionsDefinition" } } } }
+        { "if": { "properties": { "type": { "const": "existing_page_actions" } } }, "then": { "properties": { "definition": { "$ref": "#/$defs/ExistingPageActionsDefinition" } } } },
+        { "if": { "properties": { "type": { "const": "document_template" } } }, "then": { "required": ["targets"], "properties": { "targets": { "required": ["companyScoped"], "properties": { "companyScoped": { "const": true } } }, "definition": { "$ref": "#/$defs/DocumentDefinition" } } } }
       ]
     },
     "ExtensionTargets": { "type": "object", "additionalProperties": false, "required": ["companyScoped"], "properties": { "companyScoped": { "type": "boolean" }, "supportedEntityIds": { "type": "array", "items": { "type": "string" } } } },
@@ -354,6 +362,30 @@
     "ExistingActionBase": { "type": "object", "required": ["actionId", "label", "kind"], "properties": { "actionId": { "$ref": "#/$defs/NonBlankString" }, "label": { "$ref": "#/$defs/NonBlankString" }, "kind": { "const": "run_action" }, "result": { "type": "object", "properties": { "display": { "const": "modal" }, "title": { "type": "string" } } } } },
     "ExistingRunAction": { "allOf": [{ "$ref": "#/$defs/ExistingActionBase" }, { "type": "object", "required": ["action"], "properties": { "kind": { "const": "run_action" }, "action": { "$ref": "#/$defs/RunActionReference" } } }] },
     "RunActionReference": { "type": "object", "additionalProperties": false, "required": ["extensionId", "actionId"], "properties": { "extensionId": { "$ref": "#/$defs/Identifier" }, "actionId": { "$ref": "#/$defs/Identifier" }, "inputs": { "type": "array", "items": { "$ref": "#/$defs/ActionInput" } }, "requiresCandidate": { "type": "boolean" } } },
+
+    "DocumentDefinition": { "type": "object", "additionalProperties": false, "required": ["definitionVersion", "documents"], "properties": { "definitionVersion": { "const": 1 }, "documents": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "$ref": "#/$defs/DocumentTemplate" } } } },
+    "DocumentTemplate": { "type": "object", "additionalProperties": false, "required": ["documentId", "label", "documentType", "source", "page", "body"], "properties": { "documentId": { "$ref": "#/$defs/Identifier" }, "label": { "$ref": "#/$defs/NonBlankString", "maxLength": 120 }, "description": { "type": "string", "maxLength": 500 }, "documentType": { "enum": ["invoice", "bill", "company", "customer", "item", "vendor"] }, "source": { "$ref": "#/$defs/DocumentSource" }, "page": { "$ref": "#/$defs/DocumentPage" }, "body": { "type": "array", "minItems": 1, "maxItems": 100, "items": { "$ref": "#/$defs/DocumentNode" } }, "filename": { "type": "string", "maxLength": 100, "pattern": "^[^/\\\\<>:\"|?*\\u0000-\\u001f]*$" } } },
+    "DocumentSource": { "oneOf": [
+      { "type": "object", "additionalProperties": false, "required": ["kind", "sourceId", "sourceVersion"], "properties": { "kind": { "const": "native" }, "sourceId": { "const": "invoices" }, "sourceVersion": { "const": "1" } } },
+      { "type": "object", "additionalProperties": false, "required": ["kind", "sourceId", "sourceVersion"], "properties": { "kind": { "const": "native" }, "sourceId": { "const": "bills" }, "sourceVersion": { "const": "1" } } },
+      { "type": "object", "additionalProperties": false, "required": ["kind", "sourceId", "sourceVersion"], "properties": { "kind": { "const": "native" }, "sourceId": { "const": "companies" }, "sourceVersion": { "const": "1" } } },
+      { "type": "object", "additionalProperties": false, "required": ["kind", "sourceId", "sourceVersion"], "properties": { "kind": { "const": "native" }, "sourceId": { "const": "customers" }, "sourceVersion": { "const": "1" } } },
+      { "type": "object", "additionalProperties": false, "required": ["kind", "sourceId", "sourceVersion"], "properties": { "kind": { "const": "native" }, "sourceId": { "const": "items" }, "sourceVersion": { "const": "1" } } },
+      { "type": "object", "additionalProperties": false, "required": ["kind", "sourceId", "sourceVersion"], "properties": { "kind": { "const": "native" }, "sourceId": { "const": "vendors" }, "sourceVersion": { "const": "1" } } }
+    ] },
+    "DocumentPage": { "type": "object", "additionalProperties": false, "required": ["mode", "size"], "properties": { "mode": { "enum": ["flow", "fixed"] }, "size": { "enum": ["letter", "a4", "legal"] }, "orientation": { "enum": ["portrait", "landscape"] }, "marginMm": { "type": "number", "minimum": 0, "maximum": 50 } } },
+    "DocumentNode": { "type": "object", "additionalProperties": false, "required": ["type"], "properties": { "type": { "enum": ["stack", "row", "text", "field", "table", "divider", "spacer"] }, "text": { "type": "string", "minLength": 1, "maxLength": 2000 }, "path": { "$ref": "#/$defs/DocumentFieldPath" }, "label": { "type": "string", "maxLength": 80 }, "format": { "$ref": "#/$defs/DocumentFormat" }, "children": { "type": "array", "minItems": 1, "maxItems": 50, "items": { "$ref": "#/$defs/DocumentNode" } }, "itemsPath": { "$ref": "#/$defs/DocumentFieldPath" }, "columns": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "$ref": "#/$defs/DocumentTableColumn" } }, "style": { "$ref": "#/$defs/DocumentStyle" }, "frame": { "$ref": "#/$defs/DocumentFrame" }, "heightMm": { "type": "number", "minimum": 0, "maximum": 100 } }, "allOf": [
+      { "if": { "properties": { "type": { "const": "text" } } }, "then": { "required": ["text"] } },
+      { "if": { "properties": { "type": { "const": "field" } } }, "then": { "required": ["path"] } },
+      { "if": { "properties": { "type": { "const": "table" } } }, "then": { "required": ["itemsPath", "columns"] } },
+      { "if": { "properties": { "type": { "enum": ["stack", "row"] } } }, "then": { "required": ["children"] } }
+    ] },
+    "DocumentFieldPath": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)*$" },
+    "DocumentFormat": { "enum": ["text", "date", "money", "number"] },
+    "DocumentTableColumn": { "type": "object", "additionalProperties": false, "required": ["path", "label"], "properties": { "path": { "$ref": "#/$defs/DocumentFieldPath" }, "label": { "$ref": "#/$defs/NonBlankString", "maxLength": 80 }, "format": { "$ref": "#/$defs/DocumentFormat" }, "widthPercent": { "type": "number", "minimum": 0, "maximum": 100 } } },
+    "DocumentStyle": { "type": "object", "additionalProperties": false, "properties": { "fontSizePt": { "type": "number", "minimum": 0, "maximum": 72 }, "fontWeight": { "enum": ["normal", "bold"] }, "align": { "enum": ["left", "center", "right"] }, "color": { "$ref": "#/$defs/DocumentColor" }, "background": { "$ref": "#/$defs/DocumentColor" }, "borderColor": { "$ref": "#/$defs/DocumentColor" }, "paddingMm": { "type": "number", "minimum": 0, "maximum": 25 }, "gapMm": { "type": "number", "minimum": 0, "maximum": 25 }, "widthPercent": { "type": "number", "minimum": 0, "maximum": 100 }, "hideWhenEmpty": { "type": "boolean" } } },
+    "DocumentColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "DocumentFrame": { "type": "object", "additionalProperties": false, "required": ["xMm", "yMm", "widthMm", "heightMm"], "properties": { "xMm": { "type": "number", "minimum": 0 }, "yMm": { "type": "number", "minimum": 0 }, "widthMm": { "type": "number", "exclusiveMinimum": 0, "maximum": 500 }, "heightMm": { "type": "number", "exclusiveMinimum": 0, "maximum": 500 } } },
 
     "AccountingScheduleDefinition": { "type": "object", "required": ["schedule", "calculation", "posting"], "properties": { "definitionVersion": { "const": "2" }, "schedule": { "$ref": "#/$defs/AccountingScheduleConfig" }, "templates": { "type": "array", "items": { "$ref": "#/$defs/AccountingTemplate" } }, "fields": { "$ref": "#/$defs/Fields" }, "relationRoles": { "type": "array", "items": { "$ref": "#/$defs/RelationRole" } }, "accountRoles": { "type": "array", "items": { "$ref": "#/$defs/AccountRole" } }, "calculation": { "$ref": "#/$defs/AccountingCalculation" }, "posting": { "$ref": "#/$defs/AccountingPosting" } }, "allOf": [{ "if": { "required": ["definitionVersion"] }, "then": { "properties": { "calculation": { "required": ["periodCountSource", "openingRecognizedAmountSource", "openingRecognizedThroughSource", "postingConvention"] } } } }] },
     "AccountingScheduleConfig": { "type": "object", "required": ["scheduleId", "title"], "properties": { "scheduleId": { "$ref": "#/$defs/NonBlankString" }, "title": { "$ref": "#/$defs/NonBlankString" }, "description": { "type": "string" }, "icon": { "type": "string" }, "category": { "type": "string" }, "route": { "type": "string" } } },
