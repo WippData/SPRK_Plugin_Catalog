@@ -92,7 +92,9 @@ All properties are typed objects. They may be omitted in JSON because missing ob
 | `reports.query` | `PluginReportsQueryCapability` | C | Required for every report source; exact source/version grants. |
 | `workflows.run` | `{required: boolean}` | C | Required for a workflow extension. |
 | `records.query` | `{required: boolean}` | C | Required for plugin-record queries and plugin-resource reference options. |
-| `records.write` | `{required: boolean}` | C | Reserved for host-supported plugin-record updates; never a native write grant. |
+| `records.write` | `{required: boolean}` | C | Required for event-only same-plugin `records.update`; never a native write grant. |
+| `files.ingest` | `PluginFilesIngestCapability` | C | Required for manual workflow file inputs; install-visible CSV/XLSX staging grant. |
+| `events.subscribe` | `PluginEventsSubscribeCapability` | C | Required for `accounting.journals.committed`. |
 | `accounting.schedules.manage` | `{required: boolean}` | C | Required by public v2 accounting schedules. |
 | `accounting.journal.propose` | `{required: boolean}` | C | Required for workflow journal previews and host-reviewed schedule journal proposals; posting remains host-owned and direct GL writes are never granted. |
 
@@ -108,6 +110,10 @@ All properties are typed objects. They may be omitted in JSON because missing ob
 |  | `targets` | `PluginBindingTargetType[]` | C | Non-empty when required; no duplicates. |
 | `PluginActionsRunCapability` | `required` | boolean | R | True when actions are declared. |
 |  | `allowedTriggers` | `PluginActionTrigger[]` | C | Must contain `manual` when required; no duplicates or other values. |
+| `PluginFilesIngestCapability` | `required` | boolean | R | True when a manual workflow accepts a file. |
+|  | `formats` | string[] | C | Non-empty unique subset of `csv`, `xlsx` when required. Must cover every file input. |
+| `PluginEventsSubscribeCapability` | `required` | boolean | R | True when a journal-commit event workflow is declared. |
+|  | `events` | string[] | C | When required, exactly the unique supported event `accounting.journals.committed`. |
 | `PluginDataCapability` | `required` | boolean | R | True when a `data.*` step is used. |
 |  | `sprk` | `PluginDataEntityGrant[]` | C | Non-empty when required. |
 | `PluginReviewCapability` | `required` | boolean | R | True when `review.import` or `review.propose` is used. |
@@ -783,6 +789,62 @@ Native target combinations are accounts/vendors/items `create`, customers
 `create_or_link`, invoices/bills `create_draft`, and journal entries `post`. A plugin-resource target uses
 `sync_snapshot` and a same-plugin records resource. See
 [Reviewed Record Proposals](reviewed-record-proposals.md).
+
+## `workflow` definition
+
+| Model | Field | JSON type | Req. | Constraints |
+| --- | --- | --- | --- | --- |
+| `WorkflowDefinition` | `definitionVersion` | integer | R | `1`. |
+|  | `workflows` | `Workflow[]` | R | 1–32 workflows; unique IDs. |
+| `Workflow` | `workflowId` | string | R | Plugin identifier; unique within its extension. Use bundle-wide uniqueness so workflow-only source filters remain unambiguous. |
+|  | `name` | string | R | Non-blank. |
+|  | `description` | string | O | Description. |
+|  | `targetExtensionId` | string | C | Required for manual workflows; omitted for event workflows. |
+|  | `trigger` | `WorkflowTrigger` | R | Manual or the supported journal-commit event. |
+|  | `inputs` | `WorkflowInput[]` | C | At most 32 for manual workflows; omitted or empty for event workflows. Includes ordinary `ActionInput` plus workflow-only `file`. |
+|  | `commands` | `WorkflowCommand[]` | R | 1–16 top-level commands and 128 across the graph. |
+| `WorkflowTrigger` | `type` | string | R | `manual` or `accounting.journals.committed`. |
+|  | `filters.sourceExtensionIds` | string[] | O | Event only; at most 32 unique same-plugin workflow extension IDs. |
+|  | `filters.sourceWorkflowIds` | string[] | O | Event only; at most 32 unique same-plugin workflow IDs. |
+
+`WorkflowFileInput` has required `inputId`, `label`, `type: "file"`, and
+`file`, plus optional `description` and `required`. It has no `defaultValue`,
+`multiple`, `options`, or `reference`.
+
+| Model | Field | JSON type | Req. | Constraints |
+| --- | --- | --- | --- | --- |
+| `WorkflowFileSpec` | `formats` | string[] | R | 1–2 unique values from `csv`, `xlsx`; each must be granted by `files.ingest`. |
+|  | `maxBytes` | integer | O | 1–5,242,880; omitted defaults to 5 MiB. |
+|  | `maxRows` | integer | O | 1–500; omitted defaults to 500. A referencing `dataset.read.limit` must be at least this value. |
+|  | `fields` | `WorkflowFileField[]` | R | 1–128 fields with unique IDs. |
+| `WorkflowFileField` | `fieldId` | string | R | Plugin identifier; unique within the file input. |
+|  | `label` | string | R | Non-blank mapping label. |
+|  | `dataType` | `DataType` | R | Host normalization type. |
+|  | `required` | boolean | O | Whether every staged row needs a value. File field IDs are unique and may not use the host-owned `id`. |
+
+Staging returns the runtime value `{datasetRef,contentHash}`. Both strings are
+host-issued; authors cannot provide defaults or literal references. The
+reference is scoped to company, plugin, workflow, input, and definition digest,
+and the host verifies the content hash and expiry when the user submits.
+
+Manual sources are `$context.selection.records`, an earlier
+`$steps.ID.records`, or `$item` in a calculate-only loop. Event workflows may
+instead start from `$event.journals`. Manual workflow commands and expressions
+are detailed in [Manual Plugin Workflows](manual-plugin-workflows.md); the event
+payload, filtering, and lifecycle are detailed in
+[Journal-Commit Event Workflows](event-driven-workflows.md).
+
+| Command | Trigger | Key constraints |
+| --- | --- | --- |
+| `dataset.read` | Manual only | `with.inputId` names a declared file input; optional `limit` is 1–500; output is `$steps.ID.records`. A staged collection over the limit fails rather than truncating. |
+| `accounting.journal.preview` | Manual only | Requires one earlier `review.records`, is final, and needs `accounting.journal.propose`. |
+| `records.update` | `accounting.journals.committed` only | Final top-level command; needs `records.write`; targets a user-accessible same-plugin `new_page` records resource. |
+
+`records.update.with` requires `resource`, `source`, `recordId`, and `set`.
+`recordId` is a workflow expression; `set` contains 1–32 identifier-keyed
+workflow expressions. At runtime all IDs must resolve uniquely, the resulting
+records must satisfy the declared resource schema/account references, and at
+most 500 rows update transactionally.
 
 ### Review-import `with`: `ActionReviewImportStep`
 

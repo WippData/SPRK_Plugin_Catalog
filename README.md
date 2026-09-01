@@ -70,9 +70,11 @@ and the deterministic catalog check.
 Plugin developers should start with
 [`plugin-developer-docs/README.md`](plugin-developer-docs/README.md). Complete
 validated examples cover detail reports, grouped reports, bank and customer
-review imports, CRM-to-native conversions, reviewed provider snapshots, and a
+review imports, CRM-to-native conversions, reviewed provider snapshots, a
 non-catalog manual workflow with branching, collections, rich inputs, and
-execution context.
+execution context, and a manual file-data workflow. A separate non-catalog depreciation example covers reviewed
+journal proposal, exact-hash commit, journal-commit event delivery, and
+same-plugin schedule writeback.
 Validate any plugin folder with:
 
 ```bash

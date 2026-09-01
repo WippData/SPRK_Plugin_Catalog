@@ -12,6 +12,7 @@ workflows, and preserves audit behavior. A bundle is data, not executable code.
 | Network | HTTPS base URLs, bounded methods, paths, variables, timeouts, retry policy, and safe outputs | Call undeclared destinations, follow a path to another host, or request unrestricted network access |
 | Credentials | Credential field labels, supported auth method, and bounded injection location | Read credentials back, log them, store them in configuration, or request direct secret access |
 | Provider response | Explicit safe-output paths, field types, item bounds, and discovery mapping | Persist or expose an unrestricted response body through a connector action |
+| Workflow file | Declared CSV/XLSX formats, typed columns, byte/row bounds, and `dataset.read` | Receive raw bytes, filesystem paths, macros/formulas, external workbook links, or an undeclared parser |
 | Plugin data | Company-scoped `records` resources declared in manifests | Create provider-specific core tables or use undeclared storage |
 | Core SPRK data | Bounded `list`, `get`, and `resolve`; host review; canonical bindings and workflows | Directly mutate accounts, customers, vendors, items, bank records, journals, or another core record |
 | Accounting | Propose schedules, mappings, imports, source documents, and postings to host workflows | Bypass double entry, permissions, locks, audit history, review, reconciliation, reversal, or void logic |
@@ -72,6 +73,15 @@ data.
   company. Enabling, configuration, connections, and execution are company
   scoped.
 - Uninstall can be blocked by live connections or protected plugin data.
+- A journal-commit event may update only user-accessible records in the same
+  enabled plugin and active company. The host revalidates definition digest,
+  resource schema, account references, unique record IDs, and the 500-row bound.
+- A manual file workflow receives only a company/plugin/workflow/input/digest-
+  scoped staged reference. The host verifies its content hash and expiry,
+  treats raw bytes as transient, and exposes at most 500 normalized rows per
+  `dataset.read`. Selecting or staging the file has no side effect; Submit
+  starts the manual run. Submitted normalized and derived rows follow durable
+  workflow audit retention and company-file export; the original bytes do not.
 
 ## Core data and review
 
@@ -109,6 +119,10 @@ The GL is the accounting source of truth. For plugin-generated accounting:
 - Direct posting is not a safe default for imported or generated activity.
   Prefer staging and review unless a trusted host autopost policy explicitly
   permits the same guarded workflow.
+- `accounting.journals.committed` is queued only after canonical exact-hash
+  commit of a same-plugin proposal. Its `records.update` writeback is plugin
+  schedule metadata, not GL mutation or accounting truth. Reversal, void, and
+  supersede events are not yet exposed.
 
 ## Logging and diagnostics
 

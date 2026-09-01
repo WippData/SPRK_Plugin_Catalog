@@ -10,7 +10,7 @@ New plugins should be assembled from these host-rendered building blocks.
 | `connector` | External HTTPS authentication and operations | Pair with configuration; credentials remain host-owned. |
 | `plugin_configuration` | Company settings, connections, and bindings | Exactly one configuration extension and resource per bundle. |
 | `actions` | Bounded manual data/API/review operations | `trigger` is `manual`; declare exact capabilities. |
-| `workflow` | Page-bound manual collection shaping and review | `definitionVersion: 1`, manual trigger, resource-backed target page, bounded data-only branches. |
+| `workflow` | Manual collection/review or journal-commit writeback | Manual flows target a resource-backed page; the event flow is headless/inputless and same-plugin only. |
 | `existing_page_actions` | Expose an action on an approved SPRK surface | Use only `kind: "run_action"`. |
 | `report` | Native table reports and company-shared saved views | Use the executable `data`/table-`views` shape, exact semantic-source grants, declared filters/groups/measures, and bounded customization flags. |
 | `accounting_schedule` | Host-controlled accounting schedule proposals | Requires balanced host posting and full accounting safeguards. |
@@ -46,6 +46,27 @@ sort, distinct, aggregate, join, calculate, `control.if`, and
 `control.switch`; end with host review when a user decision is required. See
 [Manual Plugin Workflows](manual-plugin-workflows.md).
 
+## Standard manual file workflow
+
+Add a workflow-only `file` input plus the exact `files.ingest` CSV/XLSX grant.
+The host stages a user-selected file before execution; clicking Submit remains
+the manual trigger. Start the command graph with `dataset.read`, then use the
+same bounded calculations, filters, branches, and review surfaces as any other
+manual workflow. The plugin receives normalized typed rows, never raw bytes or
+a filesystem path. See [workflow-file-review](examples/workflow-file-review/).
+
+This does not replace `pageActions: import`. Direct CSV/XLSX import into a
+plugin page's records remains available and has its existing behavior.
+
+## Standard journal-commit writeback
+
+Pair a reviewed manual journal-proposal workflow with a headless
+`accounting.journals.committed` workflow. Grant the exact event plus
+`records.write`, filter to the proposing same-plugin workflow, consume
+`$event.journals`, and end with `records.update` to a user-accessible same-plugin
+records resource. The host queues the event only after exact-hash canonical
+commit. See [Journal-Commit Event Workflows](event-driven-workflows.md).
+
 ## Standard bank-import integration
 
 Use connector safe outputs to normalize provider data, then make
@@ -79,13 +100,15 @@ user confirms.
 ## Do not use in new plugins
 
 - `third_party` or legacy opaque workflow extensions; new declarative
-  `workflow` extensions use `definitionVersion: 1` and a manual trigger;
+  `workflow` extensions use `definitionVersion: 1` and a supported trigger;
 - `api_calls`, direct `run_api_call`, or static execution modals;
 - singular action `safeOutput` or connector-level discovery aliases;
 - direct extension `permissions.network` or `permissions.secrets`;
-- scheduled/background action triggers;
+- schedules or background triggers other than `accounting.journals.committed`;
 - arbitrary scripts, HTML, SQL, executable files, or response transforms;
-- file-upload inputs, pasted CSV/XLSX parsing, or invented parser/validator steps;
+- file inputs on actions or event workflows, pasted CSV/XLSX parsing, raw file
+  access, or invented parser/validator steps; manual workflows use the host's
+  declared `file` input and `dataset.read` only;
 - physical table names, joins, subqueries, unions, window functions, or
   arbitrary row expressions in reports;
 - report charts, dashboards, or true pivot columns in the initial v2 runtime;

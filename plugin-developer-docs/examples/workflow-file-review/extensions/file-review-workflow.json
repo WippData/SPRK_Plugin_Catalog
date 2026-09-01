@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "2",
+  "extensionId": "file-review-workflow",
+  "type": "workflow",
+  "name": "File Review Workflow",
+  "version": "1.0.0",
+  "definition": {
+    "definitionVersion": 1,
+    "workflows": [
+      {
+        "workflowId": "process-file",
+        "name": "Process data file",
+        "description": "Load user-selected rows, calculate an adjusted amount, filter them, and open host review.",
+        "targetExtensionId": "file-review-page",
+        "trigger": { "type": "manual" },
+        "inputs": [
+          {
+            "inputId": "source-file",
+            "label": "Data file",
+            "description": "Choose a CSV or XLSX file to process after you click Run workflow.",
+            "type": "file",
+            "required": true,
+            "file": {
+              "formats": ["csv", "xlsx"],
+              "maxBytes": 5242880,
+              "maxRows": 500,
+              "fields": [
+                { "fieldId": "customer", "label": "Customer", "dataType": "string", "required": true },
+                { "fieldId": "status", "label": "Status", "dataType": "string", "required": true },
+                { "fieldId": "amount", "label": "Amount", "dataType": "currency", "required": true }
+              ]
+            }
+          }
+        ],
+        "commands": [
+          {
+            "id": "load-file",
+            "command": "dataset.read",
+            "with": { "inputId": "source-file", "limit": 500 }
+          },
+          {
+            "id": "calculate-adjusted-amount",
+            "command": "calculate",
+            "with": {
+              "source": "$steps.load-file.records",
+              "calculations": [
+                {
+                  "field": "adjusted_amount",
+                  "valueType": "number",
+                  "expression": {
+                    "kind": "operation",
+                    "operator": "multiply",
+                    "args": [
+                      { "kind": "field", "field": "amount" },
+                      { "kind": "value", "value": 1.05 }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "active-rows",
+            "command": "records.filter",
+            "with": {
+              "source": "$steps.calculate-adjusted-amount.records",
+              "predicate": {
+                "operator": "and",
+                "predicates": [{ "field": "status", "op": "eq", "value": "active" }]
+              }
+            }
+          },
+          {
+            "id": "review-file-rows",
+            "command": "review.records",
+            "with": {
+              "source": "$steps.active-rows.records",
+              "title": "Processed file rows"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

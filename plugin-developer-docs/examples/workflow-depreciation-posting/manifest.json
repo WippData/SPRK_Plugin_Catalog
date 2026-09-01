@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "2",
+  "pluginId": "workflow-depreciation-posting",
+  "name": "Depreciation Posting Workflow",
+  "version": "1.0.0",
+  "publisher": { "id": "demo", "name": "Demo Publisher" },
+  "description": "Demonstrates reviewed journal proposals and event-driven same-plugin schedule writeback.",
+  "runtime": { "minAppVersion": "1.0.0" },
+  "capabilities": {
+    "workflows.run": { "required": true },
+    "records.query": { "required": true },
+    "records.write": { "required": true },
+    "events.subscribe": {
+      "required": true,
+      "events": ["accounting.journals.committed"]
+    },
+    "accounting.journal.propose": { "required": true },
+    "surfaces.contribute": {
+      "required": true,
+      "surfaces": ["plugin_pages.header.actions"]
+    }
+  },
+  "extensionManifests": [
+    { "extensionId": "assets-page", "path": "extensions/assets-page.json" },
+    { "extensionId": "depreciation-workflows", "path": "extensions/depreciation-workflows.json" }
+  ]
+}

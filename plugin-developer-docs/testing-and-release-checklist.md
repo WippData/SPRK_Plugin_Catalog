@@ -145,6 +145,16 @@ go build ./...
 
 ## 6. Manual workflow tests
 
+- [ ] For each file input, verify CSV/XLSX grants, signature sniffing, the 5 MiB
+      and 500-row bounds, 1–128 unique typed fields, required mappings, and
+      explicit sheet selection for a multi-sheet workbook.
+- [ ] Confirm opening the modal, selecting, analyzing, mapping, or staging a file
+      creates no workflow run and performs no API/plugin/native/accounting write;
+      only Submit starts the run with the host-issued reference and content hash.
+- [ ] Reject raw bytes/paths, invented dataset references, wrong-company/plugin/
+      workflow/input/digest references, hash mismatch, expiry, and replay after discard.
+- [ ] Exercise `dataset.read` at 1 and 500 rows, reject 501, and confirm subsequent
+      collection commands preserve lineage and the 500-record working cap.
 - [ ] Launch with no selection, one selected row, multiple rows in different
       input order, and the 500-row boundary. Confirm the persisted resolved
       context always contains selection IDs, records, and count.
@@ -176,6 +186,15 @@ go build ./...
       explicit trusted host policy applies.
 - [ ] Currency, rate, rate date, base amount, and FX treatment remain explicit
       when foreign currency is involved.
+- [ ] For `accounting.journals.committed`, confirm preview/cancel/hash-mismatch/
+      failed commit produce no event; exact committed preview produces one
+      idempotent company-scoped event run.
+- [ ] Confirm source filters isolate the intended same-plugin workflow and that
+      stale definition, disabled plugin, cross-company data, host-only resource,
+      missing/duplicate record ID, schema failure, or more than 500 updates fail
+      closed without partial writeback.
+- [ ] Reversal, void, and supersede do not emit this event. Document the
+      resulting schedule-reconciliation limitation until lifecycle events exist.
 
 ## 8. Upgrade and uninstall
 

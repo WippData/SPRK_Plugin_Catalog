@@ -60,7 +60,7 @@ without understanding the reference that failed.
 | --- | --- | --- |
 | Unknown field in `with` | Command-specific object contains a field from another command | Select the `with` schema by `command`; action steps use strict unknown-field rejection. |
 | Step command unsupported | Typo or unimplemented command | Use `data.list`, `data.get`, `data.resolve`, `api.execute`, `review.import`, `review.propose`, or compatibility-only `resource.apply_delta`. |
-| CSV/file parsing command unsupported | The plugin invented a parser, transform, or validation step | The current runner cannot ingest local files or pasted CSV/XLSX. Fetch provider JSON with `api.execute`, project typed `safeOutputs`, or report the requested primitive as unsupported. |
+| CSV/file parsing command unsupported | An action invented a parser, transform, or validation step | Keep action imports on connector `safeOutputs`. For a user-selected file, declare a manual workflow `file` input, exact `files.ingest` formats, and `dataset.read`; pasted/raw file parsing remains unsupported. |
 | More than 32 actions or 16 steps | Manifest exceeds runner bounds | Split the user workflow into smaller manual actions without creating a hidden scheduler. |
 | `connectionId` invalid | API action does not use the selected host connection | Set it to `$context.connectionId`. |
 | Request binding rejected | Invalid source expression or query/body destination shape | Use a declared `$context`, `$inputs`, `$configuration`, or earlier `$steps` source and the correct `name`/`path` rules. |
@@ -100,6 +100,8 @@ surface in the minimum SPRK version declared by the plugin.
 | Workflow is not listed | Missing `workflows.run`, missing `plugin_pages.header.actions`, wrong target, or disabled extension | Grant the exact capabilities and target an enabled same-plugin resource-backed `new_page`. |
 | Input options fail to load | Reference grant/resource/filter is invalid | Native references need exact data list/get grants; plugin references need `records.query` and a user-accessible same-plugin records resource. |
 | Input value rejected | Runtime value or default does not match its rich type | Use the exact value shapes in [Manual Plugin Workflows](manual-plugin-workflows.md); arrays/maps are capped at 100. |
+| File cannot be staged | Format is ungranted, signature/size/rows/schema fail, or a multi-sheet XLSX has no explicit sheet | Match `files.ingest`, stay within 5 MiB/500 rows, select a sheet, and align source headers with declared field IDs or labels. Staging does not run the workflow. |
+| `dataset.read` rejected | Input is not a declared file, reference/hash/digest/company scope is stale, expired, or the limit exceeds 500 | Restage through the same modal/input and submit the host-issued `{datasetRef,contentHash}`; use a 1–500 limit. |
 | Selection rejected | IDs are stale, duplicated, cross-company, wrong-resource, host-only, or over 500 | Refresh the target page and submit only its selected record IDs. Selection may be omitted. |
 | Source must reference an earlier command | `$steps.ID.records` names a future, branch-private, or non-list result | Reorder commands or read the outer control command's collection. |
 | Nested branch is not data-only | A branch contains query, review, loop, update, journal preview, or another side effect | Move the side effect after the outer control command and source `$steps.CONTROL_ID.records`. |
@@ -108,6 +110,17 @@ surface in the minimum SPRK version declared by the plugin.
 | Join failed | Right-side keys are duplicated or output exceeds 500 | Aggregate/distinct the right side first and narrow inputs. Null keys intentionally never match. |
 | Workflow stopped | `control.stop` selected a completed/cancelled/failed outcome | Display the persisted stop message and correct the controlling input or data. |
 | Journal preview unavailable | Proposal capability, earlier review, account/date/period validation, or terminal placement is missing | Keep journal preview terminal after one review and use the host's canonical preview/confirmation path. |
+
+## Journal-commit event workflow errors
+
+| Error or symptom | Likely cause | Corrective action |
+| --- | --- | --- |
+| Event workflow never queues | Missing `events.subscribe`, source filters do not match, plugin/extension is disabled, or the proposal did not commit | Grant only `accounting.journals.committed`, verify same-plugin filter IDs, and confirm the host committed the exact reviewed preview. |
+| Event target or input rejected | Event workflows are headless and inputless | Omit `targetExtensionId` and `inputs`; an event-only workflow needs no surface grant. |
+| `$event.journals` rejected | Source is used by a manual workflow or unsupported trigger | Use it only inside `accounting.journals.committed`. |
+| `records.update` rejected | Command is manual/nested/non-final, `records.write` is absent, or target is not a user-accessible same-plugin `new_page` records resource | Keep one terminal top-level update, grant `records.write`, and fix the exact resource reference. |
+| Writeback run fails | Source IDs are empty/duplicate/missing, schema/account references fail, company/plugin identity is stale, or update exceeds 500 rows | Reconcile event receipts to source records and correct the plugin-owned data/definition; no native/core write is available. |
+| Schedule disagrees after correction | Journal was later reversed, voided, or superseded | Reconcile by native journal ID/posting hash; those lifecycle events are not currently exposed. |
 
 ## Report query errors
 

@@ -242,7 +242,222 @@ class PluginFolderValidatorTests(unittest.TestCase):
             errors = self.validate(folder)
             joined = "\n".join(errors)
             self.assertIn("trigger.type: must equal 'manual'", joined)
-            self.assertIn("trigger.cron: unknown field", joined)
+            self.assertIn("must match exactly one allowed shape", joined)
+
+    def test_journal_commit_workflow_requires_event_and_record_write_capabilities(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-depreciation-posting", temporary)
+            self.update_json(
+                folder / "manifest.json",
+                lambda manifest: manifest["capabilities"].pop("events.subscribe"),
+            )
+            errors = self.validate(folder)
+            self.assertIn(
+                "requires capabilities.events.subscribe for accounting.journals.committed",
+                "\n".join(errors),
+            )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-depreciation-posting", temporary)
+            self.update_json(
+                folder / "manifest.json",
+                lambda manifest: manifest["capabilities"].pop("records.write"),
+            )
+            errors = self.validate(folder)
+            self.assertIn("records.update requires capabilities.records.write", "\n".join(errors))
+
+    def test_journal_commit_workflow_is_headless_inputless_and_source_filtered(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-depreciation-posting", temporary)
+
+            def add_target_and_bad_filter(extension: dict) -> None:
+                workflow = extension["definition"]["workflows"][1]
+                workflow["targetExtensionId"] = "assets-page"
+                workflow["trigger"]["filters"]["sourceWorkflowIds"] = ["missing-workflow"]
+
+            self.update_json(
+                folder / "extensions" / "depreciation-workflows.json",
+                add_target_and_bad_filter,
+            )
+            errors = self.validate(folder)
+            joined = "\n".join(errors)
+            self.assertIn("targetExtensionId: must be omitted for event workflows", joined)
+            self.assertIn("sourceWorkflowIds: must reference same-plugin workflows", joined)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-depreciation-posting", temporary)
+
+            def add_input(extension: dict) -> None:
+                extension["definition"]["workflows"][1]["inputs"] = [
+                    {"inputId": "unexpected", "label": "Unexpected", "type": "text"}
+                ]
+
+            self.update_json(
+                folder / "extensions" / "depreciation-workflows.json",
+                add_input,
+            )
+            errors = self.validate(folder)
+            self.assertIn("inputs: has too many items", "\n".join(errors))
+
+    def test_records_update_is_event_only_final_and_same_plugin(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-depreciation-posting", temporary)
+
+            def move_update_to_manual(extension: dict) -> None:
+                manual, event = extension["definition"]["workflows"]
+                update = event["commands"][0]
+                manual["commands"].insert(0, update)
+
+            self.update_json(
+                folder / "extensions" / "depreciation-workflows.json",
+                move_update_to_manual,
+            )
+            errors = self.validate(folder)
+            joined = "\n".join(errors)
+            self.assertIn("records.update is supported only in event workflows", joined)
+            self.assertIn("records.update must be final", joined)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-depreciation-posting", temporary)
+
+            def target_missing_resource(extension: dict) -> None:
+                update = extension["definition"]["workflows"][1]["commands"][0]
+                update["with"]["resource"] = {
+                    "extensionId": "assets-page",
+                    "resourceId": "missing-assets",
+                }
+
+            self.update_json(
+                folder / "extensions" / "depreciation-workflows.json",
+                target_missing_resource,
+            )
+            errors = self.validate(folder)
+            self.assertIn(
+                "records.update must target a user-accessible same-plugin new_page records resource",
+                "\n".join(errors),
+            )
+
+    def test_journal_commit_workflow_rejects_manual_only_commands_and_native_queries(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-depreciation-posting", temporary)
+
+            def add_native_query(extension: dict) -> None:
+                event = extension["definition"]["workflows"][1]
+                event["commands"].insert(
+                    0,
+                    {
+                        "id": "query-native-accounts",
+                        "command": "records.query",
+                        "with": {"entity": "accounts", "limit": 10},
+                    },
+                )
+
+            self.update_json(
+                folder / "extensions" / "depreciation-workflows.json",
+                add_native_query,
+            )
+            errors = self.validate(folder)
+            self.assertIn(
+                "event workflows may query only same-plugin resources",
+                "\n".join(errors),
+            )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-depreciation-posting", temporary)
+
+            def add_review_and_loop(extension: dict) -> None:
+                event = extension["definition"]["workflows"][1]
+                event["commands"][:0] = [
+                    {
+                        "id": "review-event-records",
+                        "command": "review.records",
+                        "with": {"source": "$event.journals"},
+                    },
+                    {
+                        "id": "loop-event-records",
+                        "command": "control.for_each",
+                        "with": {
+                            "source": "$event.journals",
+                            "onItemError": "fail",
+                            "commands": [
+                                {
+                                    "id": "calculate-event-record",
+                                    "command": "calculate",
+                                    "with": {
+                                        "source": "$item",
+                                        "calculations": [
+                                            {
+                                                "field": "copy",
+                                                "valueType": "string",
+                                                "expression": {"kind": "field", "field": "sourceRecordId"},
+                                            }
+                                        ],
+                                    },
+                                }
+                            ],
+                        },
+                    },
+                ]
+
+            self.update_json(
+                folder / "extensions" / "depreciation-workflows.json",
+                add_review_and_loop,
+            )
+            errors = self.validate(folder)
+            joined = "\n".join(errors)
+            self.assertIn("review.records is not allowed in event workflows", joined)
+            self.assertIn("control.for_each is not allowed in event workflows", joined)
+
+    def test_event_only_workflow_needs_no_surface_and_write_grant_is_command_scoped(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-depreciation-posting", temporary)
+
+            def keep_only_unfiltered_event(extension: dict) -> None:
+                event = extension["definition"]["workflows"][1]
+                event["trigger"].pop("filters")
+                extension["definition"]["workflows"] = [event]
+
+            self.update_json(
+                folder / "extensions" / "depreciation-workflows.json",
+                keep_only_unfiltered_event,
+            )
+
+            def remove_manual_capabilities(manifest: dict) -> None:
+                manifest["capabilities"].pop("surfaces.contribute")
+                manifest["capabilities"].pop("accounting.journal.propose")
+                manifest["capabilities"].pop("records.query")
+
+            self.update_json(folder / "manifest.json", remove_manual_capabilities)
+            self.assertEqual([], self.validate(folder))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-depreciation-posting", temporary)
+
+            def keep_event_without_writeback(extension: dict) -> None:
+                event = extension["definition"]["workflows"][1]
+                event["trigger"].pop("filters")
+                event["commands"] = [
+                    {
+                        "id": "finish-event",
+                        "command": "control.stop",
+                        "with": {"status": "completed"},
+                    }
+                ]
+                extension["definition"]["workflows"] = [event]
+
+            self.update_json(
+                folder / "extensions" / "depreciation-workflows.json",
+                keep_event_without_writeback,
+            )
+
+            def remove_unused_capabilities(manifest: dict) -> None:
+                manifest["capabilities"].pop("surfaces.contribute")
+                manifest["capabilities"].pop("accounting.journal.propose")
+                manifest["capabilities"].pop("records.query")
+                manifest["capabilities"].pop("records.write")
+
+            self.update_json(folder / "manifest.json", remove_unused_capabilities)
+            self.assertEqual([], self.validate(folder))
 
     def test_workflow_rejects_forward_sources_and_nested_side_effects(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -398,7 +613,122 @@ class PluginFolderValidatorTests(unittest.TestCase):
                     account_value = rows[1][rows[0].index(role["roleId"])]
                     self.assertTrue(account_value)
                     self.assertNotEqual(account_value, "account-id")
+    def test_manual_workflow_file_input_and_dataset_read_are_valid(self) -> None:
+        folder = EXAMPLES / "workflow-file-review"
+        self.assertEqual([], self.validate(folder))
 
+        extension = json.loads(
+            (folder / "extensions" / "file-review-workflow.json").read_text()
+        )
+        workflow = extension["definition"]["workflows"][0]
+        self.assertEqual(workflow["trigger"], {"type": "manual"})
+        self.assertEqual(workflow["inputs"][0]["type"], "file")
+        self.assertEqual(
+            workflow["commands"][0],
+            {
+                "id": "load-file",
+                "command": "dataset.read",
+                "with": {"inputId": "source-file", "limit": 500},
+            },
+        )
 
+    def test_workflow_file_requires_exact_grant_and_unique_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-file-review", temporary)
+            self.update_json(
+                folder / "manifest.json",
+                lambda manifest: manifest["capabilities"]["files.ingest"].__setitem__(
+                    "formats", ["csv"]
+                ),
+            )
+
+            def duplicate_field(extension: dict) -> None:
+                fields = extension["definition"]["workflows"][0]["inputs"][0]["file"]["fields"]
+                fields[1]["fieldId"] = fields[0]["fieldId"]
+
+            self.update_json(
+                folder / "extensions" / "file-review-workflow.json",
+                duplicate_field,
+            )
+            joined = "\n".join(self.validate(folder))
+            self.assertIn("formats require matching capabilities.files.ingest grants", joined)
+            self.assertIn("file.fields[1].fieldId: duplicate", joined)
+
+    def test_workflow_file_rejects_host_owned_row_identity_field(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-file-review", temporary)
+
+            def reserve_id(extension: dict) -> None:
+                fields = extension["definition"]["workflows"][0]["inputs"][0]["file"]["fields"]
+                fields[0]["fieldId"] = "id"
+
+            self.update_json(
+                folder / "extensions" / "file-review-workflow.json",
+                reserve_id,
+            )
+            joined = "\n".join(self.validate(folder))
+            self.assertIn("fieldId: reserved by the workflow host", joined)
+
+    def test_dataset_read_requires_a_required_file_within_its_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-file-review", temporary)
+
+            def make_optional_and_too_small(extension: dict) -> None:
+                workflow = extension["definition"]["workflows"][0]
+                workflow["inputs"][0]["required"] = False
+                workflow["commands"][0]["with"]["limit"] = 100
+
+            self.update_json(
+                folder / "extensions" / "file-review-workflow.json",
+                make_optional_and_too_small,
+            )
+            joined = "\n".join(self.validate(folder))
+            self.assertIn("referenced file input must be required", joined)
+            self.assertIn("must be at least the referenced file input maxRows", joined)
+
+    def test_dataset_read_requires_a_declared_file_input(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("workflow-file-review", temporary)
+
+            def point_to_unknown_input(extension: dict) -> None:
+                commands = extension["definition"]["workflows"][0]["commands"]
+                commands[0]["with"]["inputId"] = "missing-file"
+
+            self.update_json(
+                folder / "extensions" / "file-review-workflow.json",
+                point_to_unknown_input,
+            )
+            self.assertIn(
+                "with.inputId: must reference a declared file input",
+                "\n".join(self.validate(folder)),
+            )
+
+    def test_file_input_is_rejected_for_actions(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.copied_example("review-import-customers", temporary)
+
+            def add_file_input(extension: dict) -> None:
+                extension["definition"]["actions"][0]["inputs"] = [
+                    {
+                        "inputId": "source-file",
+                        "label": "Data file",
+                        "type": "file",
+                        "file": {
+                            "formats": ["csv"],
+                            "fields": [
+                                {
+                                    "fieldId": "name",
+                                    "label": "Name",
+                                    "dataType": "string",
+                                }
+                            ],
+                        },
+                    }
+                ]
+
+            self.update_json(folder / "extensions" / "actions.json", add_file_input)
+            joined = "\n".join(self.validate(folder))
+            self.assertIn("type: must be one of", joined)
+            self.assertIn("file: unknown field", joined)
 if __name__ == "__main__":
     unittest.main()
