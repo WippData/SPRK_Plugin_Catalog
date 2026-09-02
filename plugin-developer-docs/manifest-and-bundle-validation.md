@@ -21,8 +21,9 @@ between them before installation or enablement.
   Native combinations are accounts/vendors/items create, customers
   create-or-link, and invoices create-draft.
 - `surfaces.contribute.surfaces` supports `banking.import.source.actions`,
-  `chart`, `customers`, `vendors`, `items`, `reports.catalog.entries`, and
-  `plugin_pages.header.actions`.
+  `chart`, `customers`, `vendors`, `items`, `accounts.drawer.fields`,
+  `customers.drawer.fields`, `vendors.drawer.fields`, `items.drawer.fields`,
+  `reports.catalog.entries`, and `plugin_pages.header.actions`.
 - `reports.query.sources` is a non-empty exact source ID/version allowlist when
   required. Current source IDs are `gl.lines`, `invoice.lines`, and
   `bank.register`, all at version `1`.
@@ -49,6 +50,11 @@ between them before installation or enablement.
   company-scoped, and cannot request direct secret or network access.
 - An existing-page-actions extension has at least one `run_action`; each needs
   an `action` reference to a declared manual action.
+- An `expand_page` v1 extension is company-scoped, targets only accounts,
+  customers, vendors, or items, and declares 1–32 drawer-only optional
+  `addFields` representing string, enum, number, or boolean values. It has
+  exactly one author-declared company-scoped `host_only` records resource; its
+  optional record fields exactly match the definition field IDs and data types.
 - A document-template extension is company-scoped, uses definition version 1,
   contains only bounded host-rendered nodes and registered native source paths,
   and requires `capabilities.documents.render.required` with exact output grants.
@@ -89,6 +95,10 @@ between them before installation or enablement.
   connector resource. Configuration values used by an action must be declared.
 - Every existing-page action needs the surface grant matching its
   `targetPageKey`. A `run_action` target must be an existing manual action.
+- Every `expand_page` v1 extension needs the exact
+  `<targetPageKey>.drawer.fields` surface grant. A broader native action surface
+  does not satisfy that grant. Static select values and field IDs are unique
+  within their declaration.
 - A bank review action must use the accounts-to-accounts binding that supplies
   its selected Banking target and connection. A master-data page-header review
   must omit `action.binding` so the host can select a connected company
@@ -125,6 +135,10 @@ between them before installation or enablement.
 Actions have 1–32 actions per extension and 1–16 steps per action. New-plugin
 authoring uses `connector` plus `api.execute`; compatibility-only direct API
 extensions and page actions are excluded from the normative schema.
+
+The unversioned `expand_page` plugin-page shape remains readable for existing
+objects but is non-runtime and must not be authored for new plugins. New native
+drawer fields use `definitionVersion: 1`.
 
 Workflows have at most 16 commands per block, 128 commands across the graph,
 branch depth 3, expression depth 6, predicate depth 3, and 500 records per

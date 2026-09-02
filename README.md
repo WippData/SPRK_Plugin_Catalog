@@ -37,7 +37,6 @@ the catalog or current installer supports schema `1.0`.
 - `month-end-bank-cleanup/` and `revenue-analysis/`: cataloged schema `2` sources.
 - `payroll-journal-assistant/`: app-0.4.29 Payroll Journal Assistant source with
   reviewed generic and Gusto-shaped journal imports.
-- `on-demand-weather/`: preserved, uncataloged schema `2` demonstration source.
 - `employees/`: preserved, uncataloged legacy schema `1.0` source.
 
 Optional plugin-level `screenshots` metadata in the generated catalog contains a raw GitHub
@@ -123,13 +122,6 @@ gh release create demo-credentialed-github-api-v1.1.0 \
   --title "Credentialed GitHub API Demo 1.1.0" \
   --notes "Initial official catalog release."
 
-git tag -a demo-on-demand-weather-v1.0.0 -m "On-Demand Weather Demo 1.0.0"
-git push origin demo-on-demand-weather-v1.0.0
-gh release create demo-on-demand-weather-v1.0.0 \
-  dist/demo-on-demand-weather-1.0.0.zip \
-  --repo WippData/SPRK_Plugin_Catalog \
-  --title "On-Demand Weather Demo 1.0.0" \
-  --notes "Initial official catalog release."
 ```
 
 The catalog is deliberately simple: public manual GitHub releases, free plugins, one

@@ -99,7 +99,7 @@ resource; a configuration extension needs exactly one configuration resource.
 | Type | Required definition shape |
 | --- | --- |
 | `new_page` | `page` (`pageId`, `pageKind`, `title`, optional icon/route/data source), plus list or transaction fields/actions. |
-| `expand_page` | `targetPageId`, `pageActions`, `rowActions`, and optional `addFields`. |
+| `expand_page` | `definitionVersion: 1`, an allowlisted native `targetPageKey`, and drawer-only optional `addFields`; exactly one company-scoped `host_only` records resource stores companion values. |
 | `accounting_schedule` | `schedule`, `calculation`, and `posting`; optional templates, fields, relation roles, and account roles. |
 | `report` | Optional `definitionVersion: "2"`, `report`, `data`, table `views`, and optional `customization`. Parameters and top-level source/query/table shapes are not supported. |
 | `connector` | `authMethods` and `api`; `api` has `baseUrl`, `executionPolicy`, and `operations`. |
@@ -107,6 +107,13 @@ resource; a configuration extension needs exactly one configuration resource.
 | `workflow` | `definitionVersion: 1` and `workflows`; manual workflows target a resource-backed plugin page, while journal-commit workflows are headless/inputless and may write back only to same-plugin records. |
 | `plugin_configuration` | `title`, optional description, and `sections` of type `fields`, `connection`, or `bindings`. |
 | `existing_page_actions` | `targetPageKey` and one or more `run_action` actions. |
+
+`expand_page` v1 supports optional string, enum, number, and boolean fields
+using the existing `FieldDef`/`addFields` shape in the create/view/edit drawer for `accounts`, `customers`, `vendors`,
+or `items`. It requires the exact `<targetPageKey>.drawer.fields` surface grant.
+See [Native List Drawer Fields](native-list-drawer-fields.md). The older
+unversioned plugin-page expansion shape remains compatibility-readable but has
+no public runtime consumer.
 
 ## Important submodels
 

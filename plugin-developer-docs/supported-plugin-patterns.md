@@ -14,7 +14,7 @@ New plugins should be assembled from these host-rendered building blocks.
 | `existing_page_actions` | Expose an action on an approved SPRK surface | Use only `kind: "run_action"`. |
 | `report` | Native table reports and company-shared saved views | Use the executable `data`/table-`views` shape, exact semantic-source grants, declared filters/groups/measures, and bounded customization flags. |
 | `accounting_schedule` | Host-controlled accounting schedule proposals | Requires balanced host posting and full accounting safeguards. |
-| `expand_page` | Approved additions to an existing plugin page | Confirm the target host surface before depending on it. |
+| `expand_page` | Optional plugin-owned fields in an approved native list-page drawer | Target accounts/customers/vendors/items, grant the exact drawer surface, and use one host-only companion records resource. |
 | `document_template` | Trusted alternate layouts for registered native documents | Declare `documents.render`; JSON nodes are host-rendered and do not mutate or post the source record. |
 
 ## Standard authenticated integration
@@ -37,6 +37,16 @@ Use one `new_page` extension with:
 - fields whose IDs/types match the resource schema;
 - host-rendered table/drawer configuration;
 - only declared page and row actions.
+
+## Standard native list drawer fields
+
+Use one `expand_page` v1 extension to add optional string, enum, number, or
+boolean fields through the existing `addFields`/`FieldDef` shape to the create/view/edit drawer for accounts, customers,
+vendors, or items. Declare exactly one company-scoped `host_only` records
+resource whose optional fields exactly match the definition, and grant the
+exact `<target>.drawer.fields` surface. The host keeps companion values out of
+the normal native API and retains them, hidden, when the plugin is disabled or
+uninstalled. See [Native List Drawer Fields](native-list-drawer-fields.md).
 
 ## Standard manual collection workflow
 
@@ -110,9 +120,10 @@ user confirms.
 
 ## Do not use in new plugins
 
-- `third_party` or legacy opaque workflow extensions; new declarative
-  `workflow` extensions use `definitionVersion: 1` and a supported trigger;
-- `api_calls`, direct `run_api_call`, or static execution modals;
+- opaque workflow extensions; declarative `workflow` extensions use
+  `definitionVersion: 1` and a supported trigger;
+- direct API-call page actions or static execution modals; external requests
+  use a declared `connector` and a bounded `actions` `api.execute` step;
 - singular action `safeOutput` or connector-level discovery aliases;
 - direct extension `permissions.network` or `permissions.secrets`;
 - schedules or background triggers other than `accounting.journals.committed`;
@@ -124,6 +135,8 @@ user confirms.
   arbitrary row expressions in reports;
 - report charts, dashboards, or true pivot columns in the initial v2 runtime;
 - plugin-specific writers for native records or accounting tables.
+- unversioned `expand_page` declarations for new plugins; the legacy
+  plugin-page shape is readability-only and has no public runtime consumer.
 
 If the documented extensions cannot express a requirement, stop and propose a
 generic host capability. Do not create an undeclared escape hatch in a plugin.

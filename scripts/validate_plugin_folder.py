@@ -573,6 +573,46 @@ def bundle_errors(manifest: dict[str, Any], extensions: dict[str, dict[str, Any]
                 errors.append(f"extensions.{extension_id}: connector must declare exactly one connector resource")
         elif ext_type == "plugin_configuration":
             configuration_count += 1
+        elif ext_type == "expand_page" and definition.get("definitionVersion") == 1:
+            target_page = definition.get("targetPageKey")
+            expected_surface = f"{target_page}.drawer.fields"
+            surfaces = capability_list(manifest, "surfaces.contribute", "surfaces")
+            if not capability_required(manifest, "surfaces.contribute") or expected_surface not in surfaces:
+                errors.append(f"extensions.{extension_id}: expand_page requires exact surface grant {expected_surface}")
+
+            fields = definition.get("addFields", [])
+            field_ids = [field.get("fieldId") for field in fields if isinstance(field, dict)]
+            if len(set(field_ids)) != len(field_ids):
+                errors.append(f"extensions.{extension_id}.definition.addFields: fieldId values must be unique")
+            for field in fields:
+                if not isinstance(field, dict) or field.get("ui", {}).get("drawer", {}).get("input") != "select":
+                    continue
+                option_values = [option.get("value") for option in field.get("ui", {}).get("drawer", {}).get("options", {}).get("items", []) if isinstance(option, dict)]
+                if len(set(option_values)) != len(option_values):
+                    errors.append(f"extensions.{extension_id}.definition.addFields.{field.get('fieldId')}.ui.drawer.options.items: option values must be unique")
+
+            resources = extension.get("resources", [])
+            if len(resources) == 1 and isinstance(resources[0], dict):
+                resource_fields = resources[0].get("recordSchema", {}).get("fields", [])
+                resource_by_id = {
+                    field.get("fieldId"): field
+                    for field in resource_fields
+                    if isinstance(field, dict)
+                }
+                if set(resource_by_id) != set(field_ids):
+                    errors.append(f"extensions.{extension_id}: expand_page resource fields must exactly match definition field IDs")
+                definition_by_id = {
+                    field.get("fieldId"): field
+                    for field in fields
+                    if isinstance(field, dict)
+                }
+                for field_id, resource_field in resource_by_id.items():
+                    declared = definition_by_id.get(field_id, {})
+                    expected_type = declared.get("dataType")
+                    if resource_field.get("dataType") != expected_type:
+                        errors.append(f"extensions.{extension_id}.resources.{resources[0].get('resourceId')}.{field_id}: dataType must be {expected_type!r}")
+                    if resource_field.get("required") is not False:
+                        errors.append(f"extensions.{extension_id}.resources.{resources[0].get('resourceId')}.{field_id}: required must be false")
         elif ext_type == "actions":
             if not capability_required(manifest, "actions.run") or "manual" not in capability_list(manifest, "actions.run", "allowedTriggers"):
                 errors.append(f"extensions.{extension_id}: actions require capabilities.actions.run manual")

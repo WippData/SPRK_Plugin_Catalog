@@ -25,7 +25,8 @@ schema-v2 extension set that the current host can execute safely.
 | Maintain an existing direct-delta plugin | Existing `resource.apply_delta` action | Declared safe output and records resource | Compatibility-only; keep it working, but prefer reviewed snapshot proposals for new authoring. |
 | Persist connector cursor state | A `host_only` records resource | Connector pagination | Cursor state requires a string `cursor` field and advances only after confirmed review. |
 | Add a native custom report | A `report` extension with the executable `data`/table-`views` definition | `reports.query` plus `surfaces.contribute: ["reports.catalog.entries"]` | Discover an exact source/version, declare bounded filters/groups/measures, and render a table only. |
-| Add an accounting schedule or page expansion | The matching declared extension type | Product-team coordination | Verify the intended host surface before depending on it. |
+| Add optional fields to a native account/customer/vendor/item drawer | `expand_page` v1 | One company-scoped `host_only` records resource | Drawer-only string/enum/number/boolean fields; grant the exact `<target>.drawer.fields` surface and keep normal native APIs unchanged. |
+| Add an accounting schedule | `accounting_schedule` | Accounting capabilities and host posting proposal | Verify the supported schedule runtime and preserve all canonical accounting safeguards. |
 
 ## Recommended authenticated integration pattern
 
@@ -61,6 +62,7 @@ Start with no grants and add only those required by the declarations:
 | `review.propose` | `review.required: true` with an exact `proposals[].target` grant matching the field mapping |
 | `run_action` on a native page | `surfaces.contribute.required: true` with the exact page key: `banking.import.source.actions`, `chart`, `customers`, `vendors`, or `items` |
 | `run_action` in a plugin-page header | `surfaces.contribute.required: true` with `plugin_pages.header.actions` |
+| `expand_page` v1 native drawer fields | `surfaces.contribute.required: true` with exactly one of `accounts.drawer.fields`, `customers.drawer.fields`, `vendors.drawer.fields`, or `items.drawer.fields` matching the target |
 
 ## Stop and redesign when
 

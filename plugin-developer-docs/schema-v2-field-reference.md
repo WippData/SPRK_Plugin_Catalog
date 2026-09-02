@@ -123,7 +123,7 @@ All properties are typed objects. They may be omitted in JSON because missing ob
 |  | `imports` | `PluginReviewImportGrant[]` | C | Exact legacy import grants; at least one import or proposal grant when required. |
 |  | `proposals` | `PluginReviewProposalGrant[]` | C | Exact proposal target grants; at least one import or proposal grant when required. |
 | `PluginSurfacesContributeCapability` | `required` | boolean | R | True when contributing to a core surface. |
-|  | `surfaces` | `PluginSurface[]` | C | Approved native surfaces, `reports.catalog.entries`, or `plugin_pages.header.actions`; non-empty when required and no duplicates. |
+|  | `surfaces` | `PluginSurface[]` | C | Approved native action surfaces; exact native drawer-field surfaces `accounts.drawer.fields`, `customers.drawer.fields`, `vendors.drawer.fields`, and `items.drawer.fields`; `reports.catalog.entries`; or `plugin_pages.header.actions`. Non-empty when required and no duplicates. |
 | `PluginReportsQueryCapability` | `required` | boolean | R | True when executing a report. |
 |  | `sources` | `ReportSourceGrant[]` | C | Non-empty exact source allowlist when required. |
 | `ReportSourceGrant` | `sourceId` | string | R | Semantic source ID, never a table name. |
@@ -152,9 +152,9 @@ Every new plugin that executes HTTP must explicitly declare `api.execute` with t
 | `name` | string | R | Non-blank display name. |
 | `version` | string | R | Non-blank extension version. |
 | `description` | string | O | Description. |
-| `targets` | `ExtensionTargets` | C | Required with `companyScoped: true` for connector and configuration extensions. |
+| `targets` | `ExtensionTargets` | C | Required with `companyScoped: true` for connector, configuration, and `expand_page` v1 extensions. |
 | `permissions` | `ExtensionPerms` | O | Direct network/secret requests. Connector cannot request secrets; configuration cannot request network or secrets. |
-| `resources` | `PluginResourceManifest[]` | O/C | IDs unique within extension. Connector requires exactly one connector resource; configuration requires exactly one configuration resource. |
+| `resources` | `PluginResourceManifest[]` | O/C | IDs unique within extension. Connector requires exactly one connector resource; configuration requires exactly one configuration resource; `expand_page` v1 requires exactly one company-scoped `host_only` records resource. |
 | `definition` | object | R | Exact object type selected by `type`. |
 
 ### Envelope submodels
@@ -435,14 +435,41 @@ Posting is host-owned accounting behavior. A declaration may propose entries, bu
 
 ## `expand_page` definition
 
+### Native list drawer fields (`definitionVersion: 1`)
+
 | Model | Field | JSON type | Req. | Constraints |
 | --- | --- | --- | --- | --- |
-| `ExpandPageDefinition` | `targetPageId` | string | R | Non-blank target plugin page ID. |
-|  | `addFields` | `FieldDef[]` | O | Added fields. |
-|  | `pageActions` | `ActionOverrides` | R | Page action changes. |
-|  | `rowActions` | `ActionOverrides` | R | Row action changes. |
-| `ActionOverrides` | `add` | `ActionDef[]` | O | Added actions valid for scope. |
-|  | `override` | `ActionDef[]` | O | Overridden actions valid for scope. |
+| `ExpandPageDefinition` | `definitionVersion` | integer | R | Must be `1`. |
+|  | `targetPageKey` | string | R | `accounts`, `customers`, `vendors`, or `items`; transaction pages are not supported. |
+|  | `addFields` | `FieldDef[]` | R | 1–32 drawer-only optional fields. No defaults, table placement, page actions, or row actions. |
+| `FieldDef` for expansion | `fieldId` | string | R | Unique plugin field ID; exactly matches one field in the sole companion resource schema. |
+|  | `label` | string | R | Non-blank; at most 120 characters. |
+|  | `dataType` | string | R | `string`, `number`, or `boolean`. Logical enums use `string` storage. |
+|  | `required` | boolean | R | Must be `false`. |
+|  | `tooltip` | string | O | At most 500 characters. |
+|  | `ui.drawer.input` | string | R | String: `text`, `textarea`, or `select`; number: `number`; boolean: `checkbox`. |
+|  | `ui.drawer.options` | `DrawerOptions` | C | Required only for `select`; `kind` must be `static`, with 1–100 plugin-defined unique string values and labels. |
+
+The exact surface grant is `<targetPageKey>.drawer.fields`. The author declares
+exactly one company-scoped `host_only` records resource; because it is the sole
+resource, the host derives it without a `valueResourceId`. Its record schema
+has exactly the same field IDs, data types, and `required: false` values.
+Native record identity and ownership metadata are host-controlled, not
+author-declared fields. Normal native APIs are unchanged; the host loads and
+saves companion values separately. See
+[Native List Drawer Fields](native-list-drawer-fields.md) for create/view/edit,
+failure, multi-plugin, disable, uninstall, reinstall, and upgrade semantics.
+
+### Compatibility-only unversioned shape
+
+| Model | Field | JSON type | Req. | Constraints |
+| --- | --- | --- | --- | --- |
+| `LegacyExpandPageDefinition` | `targetPageId` | string | R | Historical plugin-page target. Readability only; no public runtime consumer. |
+|  | `addFields` | `FieldDef[]` | O | Historical field additions. Do not author in new plugins. |
+|  | `pageActions` | `ActionOverrides` | R | Historical page action changes. |
+|  | `rowActions` | `ActionOverrides` | R | Historical row action changes. |
+| `ActionOverrides` | `add` | `ActionDef[]` | O | Historical additions. |
+|  | `override` | `ActionDef[]` | O | Historical overrides. |
 
 ## `accounting_schedule` definition
 
