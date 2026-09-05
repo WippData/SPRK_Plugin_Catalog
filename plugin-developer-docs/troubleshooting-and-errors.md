@@ -90,8 +90,12 @@ Check these separately:
 6. Direct extension permissions do not request network or secrets.
 7. Install Preview reports no warnings or unavailable-runtime condition.
 
-For `expand_page`, `report`, and `accounting_schedule`, verify the intended host
-surface in the minimum SPRK version declared by the plugin.
+For `expand_page`, verify `definitionVersion: 1`, an allowlisted native target,
+one host-only companion records resource, and the exact
+`<target>.drawer.fields` grant. A legacy unversioned declaration is readable
+but has no public runtime consumer. For `report` and `accounting_schedule`,
+verify the intended host surface in the minimum SPRK version declared by the
+plugin.
 
 ## Manual workflow errors
 

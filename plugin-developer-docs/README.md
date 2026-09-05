@@ -20,7 +20,8 @@ extension types and shapes documented here.
    [reviewed provider snapshot](examples/review-sync-plugin-records/),
    [manual renewal workflow](examples/workflow-renewal-review/),
    [depreciation journal-commit workflow](examples/workflow-depreciation-posting/), or a
-   [native custom report](native-custom-reports.md).
+   [native custom report](native-custom-reports.md). For native drawer fields,
+   use [Native List Drawer Fields](native-list-drawer-fields.md).
 3. Use the [Typed Field Reference](schema-v2-field-reference.md) for every field and nested type.
 4. Attach [plugin-manifest.schema.json](plugin-manifest.schema.json) to your editor or generator.
 5. Follow [Implementation Recipes](cross-extension-recipes.md) for connectors, actions, review, and storage.
@@ -133,7 +134,7 @@ validates required values, references, and capability coverage.
 | Type | Purpose |
 | --- | --- |
 | `new_page` | Host-rendered list or transaction page, with declared fields, actions, and optional plugin-owned data source. |
-| `expand_page` | Adds declared fields or actions to a supported plugin page. |
+| `expand_page` | Adds optional plugin-owned fields to an approved native list-page drawer. |
 | `accounting_schedule` | Host-rendered accounting schedule with declared calculation and posting configuration. |
 | `report` | Host-rendered report with declared source, fields, measures, filters, and views. |
 | `connector` | Secure host-executed external connection with host-owned credentials. |
@@ -159,7 +160,7 @@ experience and grant bounded host behavior; request the smallest set needed.
 | `actions.run` | The bundle declares an `actions` extension. | `required: true` and `allowedTriggers: ["manual"]`. Scheduled/background actions are not supported. |
 | `data` | An action reads supported native SPRK data. | `required` and `sprk` grants. Entities: `accounts`, `customers`, `items`, `vendors`; operations: `list`, `get`, `resolve`. This is not a direct core-record write grant. |
 | `review` | An action submits an import or record proposal for host review. | `required` and at least one of `imports` or exact `proposals` target grants. |
-| `surfaces.contribute` | An extension contributes to an approved host surface. | `required` and `surfaces`; supported keys include native surfaces, `reports.catalog.entries`, and `plugin_pages.header.actions`. |
+| `surfaces.contribute` | An extension contributes to an approved host surface. | `required` and `surfaces`; supported keys include exact native drawer fields (`accounts.drawer.fields`, `customers.drawer.fields`, `vendors.drawer.fields`, `items.drawer.fields`), native action surfaces, `reports.catalog.entries`, and `plugin_pages.header.actions`. |
 | `reports.query` | A report executes against host semantic data. | `required` and an exact `sources` allowlist of supported `sourceId`/`sourceVersion` pairs. |
 | `workflows.run` | The bundle declares a `workflow` extension. | `{ "required": true }`. |
 | `records.query` | A workflow queries a same-plugin records resource or exposes plugin-record reference options. | `{ "required": true }`; same-plugin and company scope are still enforced. |
@@ -174,6 +175,13 @@ the matching capability: `data.*` needs `data`, `api.execute` needs
 `api.execute`, `review.import` and `review.propose` need `review`, and a binding needs
 `plugin.bindings.manage`. Every existing-page action requires
 `surfaces.contribute` for its exact `targetPageKey`.
+
+An `expand_page` v1 extension requires the exact
+`<targetPageKey>.drawer.fields` grant and one author-declared company-scoped
+`host_only` records resource. It adds only optional string, enum, number, and
+boolean `addFields` to the native create/view/edit drawer; normal native API
+payloads stay unchanged. See
+[Native List Drawer Fields](native-list-drawer-fields.md).
 
 A new `report` extension requires `reports.query` plus
 `surfaces.contribute: ["reports.catalog.entries"]`, optional

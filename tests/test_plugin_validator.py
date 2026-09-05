@@ -40,6 +40,100 @@ class PluginFolderValidatorTests(unittest.TestCase):
         transform(value)
         path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
+    def write_expand_page_example(self, temporary: str) -> Path:
+        folder = Path(temporary) / "publisher.expand-fields"
+        (folder / "extensions").mkdir(parents=True)
+        manifest = {
+            "schemaVersion": "2",
+            "pluginId": "publisher.expand-fields",
+            "name": "Native drawer fields",
+            "version": "1.0.0",
+            "publisher": {"id": "publisher", "name": "Publisher"},
+            "runtime": {"minAppVersion": "1.0.0"},
+            "capabilities": {
+                "surfaces.contribute": {
+                    "required": True,
+                    "surfaces": ["customers.drawer.fields"],
+                }
+            },
+            "extensionManifests": [
+                {"extensionId": "customer-fields", "path": "extensions/customer-fields.json"}
+            ],
+        }
+        extension = {
+            "schemaVersion": "2",
+            "extensionId": "customer-fields",
+            "type": "expand_page",
+            "name": "Customer fields",
+            "version": "1.0.0",
+            "targets": {"companyScoped": True},
+            "resources": [
+                {
+                    "resourceId": "customer-values",
+                    "kind": "records",
+                    "schemaVersion": 1,
+                    "scope": "company",
+                    "access": "host_only",
+                    "recordSchema": {
+                        "fields": [
+                            {"fieldId": "segment", "dataType": "string", "required": False},
+                            {"fieldId": "credit-limit", "dataType": "number", "required": False},
+                            {"fieldId": "tax-exempt", "dataType": "boolean", "required": False},
+                            {"fieldId": "internal-note", "dataType": "string", "required": False},
+                        ]
+                    },
+                }
+            ],
+            "definition": {
+                "definitionVersion": 1,
+                "targetPageKey": "customers",
+                "addFields": [
+                    {
+                        "fieldId": "segment",
+                        "label": "Segment",
+                        "dataType": "string",
+                        "required": False,
+                        "ui": {
+                            "drawer": {
+                                "input": "select",
+                                "options": {
+                                    "kind": "static",
+                                    "items": [
+                                        {"value": "retail", "label": "Retail"},
+                                        {"value": "wholesale", "label": "Wholesale"},
+                                    ],
+                                },
+                            }
+                        },
+                    },
+                    {
+                        "fieldId": "credit-limit",
+                        "label": "Credit limit",
+                        "dataType": "number",
+                        "required": False,
+                        "ui": {"drawer": {"input": "number"}},
+                    },
+                    {
+                        "fieldId": "tax-exempt",
+                        "label": "Tax exempt",
+                        "dataType": "boolean",
+                        "required": False,
+                        "ui": {"drawer": {"input": "checkbox"}},
+                    },
+                    {
+                        "fieldId": "internal-note",
+                        "label": "Internal note",
+                        "dataType": "string",
+                        "required": False,
+                        "ui": {"drawer": {"input": "text"}},
+                    },
+                ],
+            },
+        }
+        (folder / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        (folder / "extensions" / "customer-fields.json").write_text(json.dumps(extension, indent=2) + "\n", encoding="utf-8")
+        return folder
+
     def test_all_documented_examples_are_locally_valid(self) -> None:
         for folder in sorted(path for path in EXAMPLES.iterdir() if path.is_dir()):
             with self.subTest(folder=folder.name):
@@ -219,6 +313,92 @@ class PluginFolderValidatorTests(unittest.TestCase):
                 "plugin page run_action requires plugin_pages.header.actions",
                 "\n".join(errors),
             )
+
+    def test_expand_page_v1_drawer_fields_bundle_is_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            self.assertEqual(self.validate(self.write_expand_page_example(temporary)), [])
+
+    def test_expand_page_v1_accepts_each_allowlisted_target_and_exact_surface(self) -> None:
+        for target in ("accounts", "customers", "vendors", "items"):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as temporary:
+                folder = self.write_expand_page_example(temporary)
+                self.update_json(
+                    folder / "manifest.json",
+                    lambda manifest: manifest["capabilities"]["surfaces.contribute"].__setitem__(
+                        "surfaces", [f"{target}.drawer.fields"]
+                    ),
+                )
+                self.update_json(
+                    folder / "extensions" / "customer-fields.json",
+                    lambda extension: extension["definition"].__setitem__("targetPageKey", target),
+                )
+                self.assertEqual(self.validate(folder), [])
+
+    def test_expand_page_v1_requires_exact_drawer_surface(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.write_expand_page_example(temporary)
+            self.update_json(
+                folder / "manifest.json",
+                lambda manifest: manifest["capabilities"]["surfaces.contribute"].__setitem__(
+                    "surfaces", ["customers"]
+                ),
+            )
+            self.assertIn(
+                "expand_page requires exact surface grant customers.drawer.fields",
+                "\n".join(self.validate(folder)),
+            )
+
+    def test_expand_page_v1_resource_schema_must_match_optional_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.write_expand_page_example(temporary)
+
+            def break_resource(extension: dict) -> None:
+                fields = extension["resources"][0]["recordSchema"]["fields"]
+                fields[0]["required"] = True
+                fields[1]["dataType"] = "string"
+
+            self.update_json(folder / "extensions" / "customer-fields.json", break_resource)
+            joined = "\n".join(self.validate(folder))
+            self.assertIn("segment: required must be false", joined)
+            self.assertIn("credit-limit: dataType must be 'number'", joined)
+
+    def test_expand_page_v1_rejects_non_drawer_placement_defaults_and_resource_selector(self) -> None:
+        mutations = {
+            "valueResourceId": lambda extension: extension["definition"].__setitem__(
+                "valueResourceId", "customer-values"
+            ),
+            "defaultValue": lambda extension: extension["definition"]["addFields"][0].__setitem__(
+                "defaultValue", "retail"
+            ),
+            "table": lambda extension: extension["definition"]["addFields"][0]["ui"].__setitem__(
+                "table", {"visible": True}
+            ),
+        }
+        for rejected_field, mutation in mutations.items():
+            with self.subTest(rejected_field=rejected_field), tempfile.TemporaryDirectory() as temporary:
+                folder = self.write_expand_page_example(temporary)
+                self.update_json(folder / "extensions" / "customer-fields.json", mutation)
+                self.assertIn(
+                    f"{rejected_field}: unknown field",
+                    "\n".join(self.validate(folder)),
+                )
+
+    def test_legacy_expand_page_shape_remains_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = self.write_expand_page_example(temporary)
+
+            def make_legacy(extension: dict) -> None:
+                extension.pop("targets")
+                extension.pop("resources")
+                extension["definition"] = {
+                    "targetPageId": "plugin-page",
+                    "pageActions": {},
+                    "rowActions": {},
+                }
+
+            self.update_json(folder / "extensions" / "customer-fields.json", make_legacy)
+            self.update_json(folder / "manifest.json", lambda manifest: manifest.__setitem__("capabilities", {}))
+            self.assertEqual(self.validate(folder), [])
 
     def test_crm_example_covers_customer_and_draft_invoice_conversion(self) -> None:
         actions = json.loads(
