@@ -7,6 +7,15 @@ SQL access, physical table names, unrestricted joins, or raw database access.
 
 ## Shipped report contract
 
+The current product presents fixed, extension-authored reports. Accountants can run a
+report and page through its results, but there is no end-user report builder: columns,
+filters, grouping, measures, and sorting come from the extension definition.
+
+The backend retains constrained view-state and saved-view groundwork as a potential
+future report-builder use case. Those routes and definition fields are not a promise that
+report-building controls are available in the current app. New catalog plugins should set
+all `customization` flags to `false` and supply the complete report as an extension.
+
 New report extensions set `definitionVersion: "2"` but use the existing
 additive `report`, `data`, `views`, and `customization` fields. This is the
 executable contract; top-level `source`, `query`, `table`, or parameter
@@ -24,10 +33,15 @@ bases, and view features are supported. Broader ledger balances, AR/AP,
 payments, checks, master-data, audit, and plugin-resource sources remain planned
 until they appear in this endpoint.
 
-Execution and saved-view paths are:
+The report execution path is:
 
 ```text
 POST /v1/companies/:id/plugins/:pluginId/extensions/:extensionId/reports/:reportId/query
+```
+
+The backend also retains these dormant saved-view paths for possible future use:
+
+```text
 GET|POST /v1/companies/:id/report-views
 PUT|DELETE /v1/companies/:id/report-views/:viewId
 ```
@@ -95,10 +109,10 @@ separate `reports.catalog.entries` root capability.
     }
   ],
   "customization": {
-    "allowUserFilters": true,
-    "allowUserGroupBy": true,
-    "allowSavedViews": true,
-    "maxGroupLevels": 2
+    "allowUserFilters": false,
+    "allowUserGroupBy": false,
+    "allowSavedViews": false,
+    "maxGroupLevels": 0
   }
 }
 ```
@@ -111,10 +125,10 @@ report basis metadata, and the browser must not recalculate accounting totals
 or group paginated detail rows. Header and line grain must remain distinct to
 avoid duplicating document totals.
 
-Developers control exposed filters, group fields, declared measures, default
-sorts, and table columns. Users may submit only constrained `viewState`:
-columns, a predicate, groups, declared measure IDs, and sorts. Parameters,
-new measures, source changes, raw expressions, joins, and SQL are rejected.
+Developers control filters, group fields, declared measures, default sorts, and table
+columns. The current app submits that fixed definition as constrained `viewState` when the
+accountant runs the report. Parameters, new measures, source changes, raw expressions,
+joins, and SQL are rejected.
 
 Predicates are typed `condition` nodes or nested `group` nodes using `and` or
 `or`. Supported operators are `eq`, `ne`, `in`, `not_in`, `contains`, `gt`,
@@ -154,11 +168,9 @@ Do not present planned 100,000-row, 5-second, 5-MiB, or export limits as shipped
 Structured runtime errors currently include `query_invalid`,
 `report_definition_stale`, `report_definition_invalid`, `report_not_found`,
 `report_source_not_granted`, `report_surface_not_granted`, and
-`plugin_unavailable`. Saved views are company-scoped and retain their definition
-digest. The current backend stores active views and rejects stale definitions;
-automatic `needs_review`/`unavailable` status transitions are not shipped yet.
-Callers must surface digest incompatibility rather than silently changing a
-view's meaning.
+`plugin_unavailable`. The dormant saved-view backend stores company-scoped views and
+rejects stale definition digests. It remains future-facing infrastructure and is not
+exposed as an end-user report builder.
 
 ## Optional SPRKQL authoring
 

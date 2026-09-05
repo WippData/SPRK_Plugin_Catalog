@@ -9,7 +9,7 @@
   },
   "description": "Three read-only bank exception reports for pending review, unreconciled confirmed activity, and active outflows missing a vendor.",
   "runtime": {
-    "minAppVersion": "1.0.0"
+    "minAppVersion": "0.4.22"
   },
   "capabilities": {
     "reports.query": {

@@ -45,6 +45,6 @@
       "columns": ["date.month", "customer.name", "sales_total", "line_count"],
       "groupBy": ["date.month", "customer.name"]
     }],
-    "customization": { "allowUserFilters": true, "allowUserGroupBy": true, "allowSavedViews": true, "maxGroupLevels": 2 }
+    "customization": { "allowUserFilters": false, "allowUserGroupBy": false, "allowSavedViews": false, "maxGroupLevels": 0 }
   }
 }

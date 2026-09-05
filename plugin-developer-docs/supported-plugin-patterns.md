@@ -12,7 +12,7 @@ New plugins should be assembled from these host-rendered building blocks.
 | `actions` | Bounded manual data/API/review operations | `trigger` is `manual`; declare exact capabilities. |
 | `workflow` | Manual collection/review or journal-commit writeback | Manual flows target a resource-backed page; the event flow is headless/inputless and same-plugin only. |
 | `existing_page_actions` | Expose an action on an approved SPRK surface | Use only `kind: "run_action"`. |
-| `report` | Native table reports and company-shared saved views | Use the executable `data`/table-`views` shape, exact semantic-source grants, declared filters/groups/measures, and bounded customization flags. |
+| `report` | Fixed, extension-authored native table reports | Declare the complete `data`/table-`views` shape and exact semantic-source grants. End-user report building and saved views are not currently exposed. |
 | `accounting_schedule` | Host-controlled accounting schedule proposals | Requires balanced host posting and full accounting safeguards. |
 | `expand_page` | Optional plugin-owned fields in an approved native list-page drawer | Target accounts/customers/vendors/items, grant the exact drawer surface, and use one host-only companion records resource. |
 | `document_template` | Trusted alternate layouts for registered native documents | Declare `documents.render`; JSON nodes are host-rendered and do not mutate or post the source record. |

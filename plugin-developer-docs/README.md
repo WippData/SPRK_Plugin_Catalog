@@ -191,9 +191,10 @@ does not guarantee a source or field is available in a particular app version
 or company. See [Native Custom Reports](native-custom-reports.md).
 
 The current runtime exposes only `gl.lines@1`, `invoice.lines@1`, and
-`bank.register@1`. It does not yet expose typed parameters, field-option lookup,
-plugin-report exports, charts, or pivots. Treat disabled export controls and
-retained saved views as host UI state, not as additional plugin permissions.
+`bank.register@1`. It does not expose an end-user report builder, typed parameters,
+field-option lookup, plugin-report exports, charts, or pivots. Report extensions define
+the complete table that the accountant runs. Constrained view-state and saved-view
+backend support is retained only as groundwork for a possible future feature.
 
 ## Workflows
 

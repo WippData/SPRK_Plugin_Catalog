@@ -9,7 +9,7 @@
   },
   "description": "Analyze active issued invoice-line sales by customer, SKU, and month without replacing GL income reporting.",
   "runtime": {
-    "minAppVersion": "1.0.0"
+    "minAppVersion": "0.4.22"
   },
   "capabilities": {
     "reports.query": {

@@ -68,10 +68,27 @@
           "schemaVersion": "2",
           "fileName": "month-end-bank-cleanup-1.0.0.zip",
           "assetUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/releases/download/month-end-bank-cleanup-v1.0.0/month-end-bank-cleanup-1.0.0.zip",
-          "sha256": "b297f689a23f3a0bebe9e32fa8c092e51ebe7f508a3d2e7e73f64ebe6ce43e21",
-          "minAppVersion": "1.0.0",
+          "sha256": "116fe163621709892eac1a251549eef43e0941e4c75ceec17a9dd7e8b71c5b8a",
+          "minAppVersion": "0.4.22",
           "releaseNotes": "Initial official catalog release of Month-End Bank Cleanup with three native bank exception reports.",
           "publishedAt": "2026-08-17T00:00:00Z"
+        }
+      ],
+      "screenshots": [
+        {
+          "url": "https://raw.githubusercontent.com/WippData/SPRK_Plugin_Catalog/main/month-end-bank-cleanup/screenshots/pending-bank-review.jpg",
+          "alt": "Pending Bank Review report showing bank transactions that still need review",
+          "caption": "Review bank activity that has not yet been confirmed or posted."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/WippData/SPRK_Plugin_Catalog/main/month-end-bank-cleanup/screenshots/unreconciled-confirmed-bank-activity.jpg",
+          "alt": "Unreconciled Confirmed Bank Activity report with transaction details and amounts",
+          "caption": "Find confirmed bank activity that is not currently marked reconciled."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/WippData/SPRK_Plugin_Catalog/main/month-end-bank-cleanup/screenshots/bank-outflows-missing-vendor.jpg",
+          "alt": "Bank Outflows Missing Vendor report listing payments without an assigned vendor",
+          "caption": "Identify outflows that still need a vendor assigned in Banking."
         }
       ]
     },
@@ -130,10 +147,27 @@
           "schemaVersion": "2",
           "fileName": "revenue-analysis-1.0.0.zip",
           "assetUrl": "https://github.com/WippData/SPRK_Plugin_Catalog/releases/download/revenue-analysis-v1.0.0/revenue-analysis-1.0.0.zip",
-          "sha256": "d1ddff1012d383fdda51900cbc091ca4aa692801cfcade8776a4a059691fd077",
-          "minAppVersion": "1.0.0",
+          "sha256": "52a38f6c384889fe1390bd348e3ddbd6d18b5ba5b2361c2073ea5c5971359909",
+          "minAppVersion": "0.4.22",
           "releaseNotes": "Initial official catalog release of Invoice Sales Analysis with customer trend, item/SKU, and monthly sales reports.",
           "publishedAt": "2026-08-17T00:00:00Z"
+        }
+      ],
+      "screenshots": [
+        {
+          "url": "https://raw.githubusercontent.com/WippData/SPRK_Plugin_Catalog/main/revenue-analysis/screenshots/customer-sales-by-month.jpg",
+          "alt": "Customer Sales by Month report showing invoice-line sales by month and customer",
+          "caption": "Review source-document invoice sales trends by customer and invoice month."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/WippData/SPRK_Plugin_Catalog/main/revenue-analysis/screenshots/invoice-sales-by-item-sku.jpg",
+          "alt": "Invoice Sales by Item and SKU report with source-unit quantities and sales amounts",
+          "caption": "Analyze invoice-line sales and quantities by item description and SKU."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/WippData/SPRK_Plugin_Catalog/main/revenue-analysis/screenshots/invoice-sales-by-month.jpg",
+          "alt": "Invoice Sales by Month report showing monthly invoice-line sales totals",
+          "caption": "Compare source-document invoice-line sales across invoice months."
         }
       ]
     }
