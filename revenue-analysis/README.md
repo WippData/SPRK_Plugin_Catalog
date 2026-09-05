@@ -22,4 +22,5 @@ SKU and description together so blank or reused SKUs are not collapsed into one 
 Because the source does not expose unit of measure, quantity should be interpreted only
 within each item/SKU and description group.
 
-Each report allows up to two user-selected group levels and company-shared saved views.
+Each report is defined completely by the extension. Accountants run the supplied report;
+they do not choose columns, grouping, measures, filters, or saved views.

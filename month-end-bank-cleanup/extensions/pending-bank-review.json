@@ -94,9 +94,9 @@
       }
     ],
     "customization": {
-      "allowUserFilters": true,
+      "allowUserFilters": false,
       "allowUserGroupBy": false,
-      "allowSavedViews": true,
+      "allowSavedViews": false,
       "maxGroupLevels": 0
     }
   }

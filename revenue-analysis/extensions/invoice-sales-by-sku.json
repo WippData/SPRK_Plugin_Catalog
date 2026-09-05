@@ -43,6 +43,6 @@
       "columns": ["line.sku", "line.description", "sales_total", "quantity_total", "line_count"],
       "groupBy": ["line.sku", "line.description"]
     }],
-    "customization": { "allowUserFilters": true, "allowUserGroupBy": true, "allowSavedViews": true, "maxGroupLevels": 2 }
+    "customization": { "allowUserFilters": false, "allowUserGroupBy": false, "allowSavedViews": false, "maxGroupLevels": 0 }
   }
 }
